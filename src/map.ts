@@ -1,5 +1,6 @@
 import { positionForAirTrack, type AirTrack } from '@motionstudies/core/domain/air'
 import type { Airport, Land } from './data'
+export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
 export const BRITAIN:View={west:-12,south:47,east:16,north:62}
@@ -47,7 +48,7 @@ export class AirMap {
   }
   const labels=airport?[airport]:this.airports.filter(a=>['LHR','CDG','FRA','AMS','MAD','FCO','ZRH','IST'].includes(a.iata))
   ctx.font='10px ui-monospace, monospace'
-  for(const a of labels){const [x,y]=this.project(a.longitude,a.latitude);if(x<15||x>w-30||y<15||y>h-10)continue;ctx.strokeStyle=airport?'#efe0bd':'#809096';ctx.lineWidth=.8;ctx.strokeRect(x-3,y-3,6,6);ctx.fillStyle=airport?'#eee0c4':'#91a1a9';ctx.fillText(airport?`${a.iata||a.icao} · ${a.city}`:a.iata,x+8,y+3)}
+  for(const a of labels){const [x,y]=this.project(a.longitude,a.latitude);if(x<15||x>w-30||y<15||y>h-10)continue;ctx.strokeStyle=airport?'#efe0bd':'#809096';ctx.lineWidth=.8;ctx.strokeRect(x-3,y-3,6,6);ctx.fillStyle=airport?'#eee0c4':'#91a1a9';ctx.fillText(airport?`${a.iata||a.icao} · ${cityLabel(a)}`:a.iata,x+8,y+3)}
   this.durations.push(performance.now()-started);if(this.durations.length>300)this.durations.shift()
   return {total,inbound,outbound,visible:this.points.length}
  }

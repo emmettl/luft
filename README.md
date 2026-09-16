@@ -60,3 +60,5 @@ Desktop Chromium and phone-sized WebKit on a Mac passed airport search, the shar
 Aircraft data and this derived database: **ADSB.lol and its contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)**. Raw source URLs/hashes and compilation/reference hashes are included in the downloadable release manifest. The derived database is freely downloadable from the release linked above.
 
 Airport reference: [OurAirports](https://ourairports.com/data/), public domain. Land context: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain, pinned geography SHA-256 in the manifest. Code: MIT. Dependencies on `@motionstudies/core` and `@motionstudies/web` are pinned to `0.1.0-alpha.21`, including the shared airport search, movement board, card and trajectory interpolation.
+
+Airline marks are bundled SVG assets, displayed in their original colours for identification. See [logo sources and notices](src/assets/airlines/README.md); these marks are separate from the code and aircraft-data licences.

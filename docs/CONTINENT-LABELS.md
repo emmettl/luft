@@ -16,14 +16,14 @@ them in a dated recorder release; there is no separate Python classification job
 
 ## Current status
 
-The shared classifier and recorder integration have been tested locally. They require
-coordinated changes in the Motion Studies shared packages and recorder. No package
-or aircraft-data release containing these labels has been published.
+The shared continent API is released in `0.1.0-alpha.24`. LUFT pins the matching
+core, three and web packages. The recorder integration uses the matching core/data
+release to write labels and coverage into subsequent air-day exports.
 
-The committed LUFT `data-release.json` and published dataset remain unchanged.
-Next adoption steps are a coordinated shared core/data package release, exact recorder
-dependency upgrades, a new immutable air-day export, and an explicit LUFT package/data
-pin update. Do not use sibling source imports or silently relabel a pinned release.
+The committed LUFT `data-release.json` and its published dataset remain unchanged.
+The next data-adoption step is a new immutable air-day export followed by an explicit
+LUFT data pin update. Do not use sibling source imports or silently relabel a pinned
+release. Continent filters and summaries can then consume the endpoint fields below.
 
 ## Endpoint contract
 

@@ -1,0 +1,24 @@
+{
+  "origin": {
+    "segments": 40945,
+    "observed": 22499,
+    "corroborated": 9,
+    "candidate": 6780,
+    "conflicting": 6,
+    "unknown": 11651,
+    "usable": 22508,
+    "unresolved": 18437,
+    "continentKnown": 22508
+  },
+  "destination": {
+    "segments": 40945,
+    "observed": 22000,
+    "corroborated": 8,
+    "candidate": 7238,
+    "conflicting": 11,
+    "unknown": 11688,
+    "usable": 22008,
+    "unresolved": 18937,
+    "continentKnown": 22008
+  }
+}

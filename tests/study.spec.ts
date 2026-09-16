@@ -88,7 +88,10 @@ test('missing next chunk holds the last frame and offers a working retry',async(
  await page.route('**/chunk-043.json.gz.bin',route=>route.fulfill({status:503,body:'unavailable'}))
  await ready(page)
  await page.getByRole('slider').fill('25795');await page.getByRole('combobox',{name:'Playback speed'}).selectOption('900');await page.locator('.play').click()
- await expect(page.locator('.stream-status')).toContainText('Retry');expect(Number(await page.getByRole('slider').inputValue())).toBeLessThan(25800)
+ await expect(page.locator('.stream-status')).toContainText('Retry')
+ // The one-second slider rounds 07:09:59.5 up; the map clock still reflects the held frame.
+ await expect(page.locator('.clock')).toContainText('07:09')
+ expect(Number(await page.getByRole('slider').inputValue())).toBeLessThanOrEqual(25800)
  await expect(page.locator('.initial-loading')).toHaveCount(0)
  await page.unroute('**/chunk-043.json.gz.bin');await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.locator('.stream-status')).toContainText('Paused')
  expect(Number(await page.getByRole('slider').inputValue())).toBeGreaterThanOrEqual(25800)

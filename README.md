@@ -49,7 +49,7 @@ The first release reuses captures already acquired for the Europe proof. It is e
 
 ## Playback and device evaluation
 
-The browser verifies each compressed chunk's SHA-256. A short look-ahead cache shares in-flight requests. Seeking cancels obsolete requests. Late chunks hold the last frame and the clock without flashing a loading overlay; failed loads pause and offer a retry. Gaps over 45 seconds are never interpolated or joined by a trail. Hidden tabs pause playback.
+The browser verifies each compressed chunk's SHA-256. A short look-ahead cache shares in-flight requests. Seeking cancels obsolete requests. Late chunks hold the last frame and the clock without flashing a loading overlay; failed loads pause and offer a retry. Gaps over 45 seconds are never interpolated or joined by a trail. Playback loops automatically from midnight to the start of the recorded day, preserving the airline, airport, map view and pace. The look-ahead cache wraps too, preparing the opening chunks before midnight. Hidden tabs pause playback.
 
 “Device details” shows local map draw p95, cached chunk count and downloaded track bytes. These measurements stay on the device. Draw timing excludes decoding/layout/network and is not a frame-rate benchmark. During buffering, the last displayed chunk can remain referenced in addition to the four desired cache entries. At 15 minutes per second, a ten-minute chunk is consumed in two-thirds of a second, so bandwidth and decoding still matter: this public build enables real-phone evaluation, it does not establish real-phone performance.
 

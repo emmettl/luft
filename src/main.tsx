@@ -35,7 +35,7 @@ function Study({release}:{release:Release}) {
  const [boardOpen,setBoardOpen]=useState(true)
  const updateUi=()=>{const e=engine.current;setUi(p=>({...p,time:e.time,playing:e.playing,waiting:e.waiting}))}
  async function seek(value:number,playback=false) {
-  const e=engine.current,t=Math.max(0,Math.min(86399,value)),i=Math.floor(t/600)
+  const e=engine.current,t=playback?value%86400:Math.max(0,Math.min(86399,value)),i=Math.floor(t/600)
   if(e.waiting&&playback)return
   const cached=store.cache.get(i)
   if(cached){e.time=t;e.chunk=cached;e.chunkIndex=i;if(!playback){e.generation++;e.waiting=false;setStatus('Ready')}store.prefetch(i);updateUi();return}
@@ -51,7 +51,7 @@ function Study({release}:{release:Release}) {
   const frame=(now:number)=>{
    if(stopped)return
    const dt=Math.min(.12,(now-last)/1000);last=now
-   if(e.playing&&!e.waiting&&e.mode==='motion'){const next=Math.min(86399,e.time+dt*e.speed);void seek(next,true);if(next===86399){e.playing=false;updateUi()}}
+   if(e.playing&&!e.waiting&&e.mode==='motion')void seek(e.time+dt*e.speed,true)
    if(now-lastDraw>=32 && e.chunk){
     if(previousChunk!==e.chunk||previousAirline!==e.airline){tracks=e.chunk.tracks.filter(t=>matchesAirline(t,e.airline));previousChunk=e.chunk;previousAirline=e.airline}
     const cells=e.airline==='all'?index.cells:airlineSummaries.airlines[e.airline].cells

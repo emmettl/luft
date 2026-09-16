@@ -40,7 +40,7 @@ export class ChunkStore {
  downloadedBytes=0
  constructor(readonly descriptors:ChunkDescriptor[], readonly loader=verifiedJson<Chunk>) {}
  retain(index:number) {
-  this.wanted=new Set([index,index+1,index+2,index+3].filter(i=>i<this.descriptors.length))
+  this.wanted=new Set(Array.from({length:Math.min(4,this.descriptors.length)},(_,offset)=>(index+offset)%this.descriptors.length))
   for(const k of this.cache.keys()) if(!this.wanted.has(k)) this.cache.delete(k)
   for(const [k,v] of this.pending) if(!this.wanted.has(k)) {v.controller.abort();this.pending.delete(k)}
  }

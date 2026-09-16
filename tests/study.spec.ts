@@ -82,3 +82,26 @@ test('airline selection follows the map, airport board, activity and fast playba
  await expect(page.locator('.count')).not.toContainText('easyJet')
  expect(errors).toEqual([])
 })
+
+test('playback loops at midnight at slow and fast speeds, preserving the selection',async({page})=>{
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
+ await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await page.getByRole('combobox',{name:'Follow an airline'}).selectOption('swiss')
+ await page.getByRole('combobox',{name:'Find an airport'}).fill('ZRH');await page.getByRole('combobox',{name:'Find an airport'}).press('Enter')
+ for(const speed of ['60','900']){
+  await page.getByRole('combobox',{name:'Playback speed'}).selectOption(speed)
+  await page.getByRole('slider').fill('86399')
+  await expect(page.locator('.stream-status')).toHaveText('Paused')
+  await expect(page.getByRole('slider')).toHaveValue('86399')
+  await page.getByRole('button',{name:'Play',exact:true}).click()
+  await expect.poll(async()=>Number(await page.getByRole('slider').inputValue())).toBeLessThan(600)
+  await expect(page.getByRole('button',{name:'Pause',exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'Pause',exact:true}).click()
+  await expect(page.locator('.initial-loading')).toHaveCount(0)
+  await expect(page.getByRole('combobox',{name:'Follow an airline'})).toHaveValue('swiss')
+  await expect(page.getByRole('combobox',{name:'Playback speed'})).toHaveValue(speed)
+  await expect(page.locator('.ms-airport-hero')).toContainText('ZRH')
+  await expect(page.locator('.count')).toContainText('SWISS')
+ }
+ expect(errors).toEqual([])
+})

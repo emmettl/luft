@@ -80,6 +80,10 @@
 .country-summary{color:#d3bf9b}
 .airport-map-label[data-country-highlighted=true]{color:#e5cda3}
 .airport-map-label[data-country-highlighted=true]::before{border-color:#e5cda3;background:#e5cda31a}
+.airport-map-label[data-dimmed=true]{opacity:.58}
+.airport-map-label[data-dimmed=true]:hover,.airport-map-label[data-dimmed=true]:focus-visible{opacity:1}
+.flight-timeline{display:contents}
+.flight-timeline input[type=range]{touch-action:none}
 .board-launchers button{border-color:var(--hairline);background:#0c1c28c9}
 .airport-panel,.view-settings,.diagnostics,.method-content{border-color:#9fb6c433;box-shadow:0 16px 48px #0005,inset 0 1px #d9ecf209}
 .airport-panel,.flight-caption,.search-popover,.view-settings,.diagnostics{animation:instrument-reveal 220ms ease-out both}

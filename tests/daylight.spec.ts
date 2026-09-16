@@ -3,10 +3,12 @@ import {pauseAtStart} from './playback-helpers'
 
 for(const renderer of ['canvas','three'])test(`${renderer}: daylight toggles redraw paused map without changing playback or counts`,async({page})=>{
  await page.goto(`./?renderer=${renderer}`);await pauseAtStart(page)
- const previousCount=await page.locator('.count').innerText()
  await page.getByRole('slider').fill('0')
+ await expect(page.getByRole('slider')).toHaveValue('0')
  await expect(page.locator('.stream-status')).toHaveText('Paused')
- await expect(page.locator('.count')).not.toHaveText(previousCount)
+ // The pinned day's midnight count arrives on the throttled map/UI update.
+ // A count merely different from the autoplay frame can still belong to 07:00.
+ await expect(page.locator('.count')).toHaveText('335 aircraft over Europe')
  await page.getByRole('button',{name:'View settings',exact:true}).click()
  await expect(page.getByRole('combobox',{name:'Aircraft renderer'})).toHaveValue(renderer)
  const toggle=page.getByRole('checkbox',{name:'Day / night shading'})

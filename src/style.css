@@ -16,6 +16,9 @@
 @media(max-width:700px){.colophon{gap:12px}}
 
 .playback-controls{display:flex;align-items:center;gap:8px}
+/* Show transient status above the dock without changing its height. */
+.stream-status{position:absolute;bottom:calc(100% + 8px);left:0;max-width:100%;padding:6px 10px;background:#0c1a28;border:1px solid #39505f;border-radius:6px}
+@media(max-width:700px){.stream-status{max-width:calc(100% - 224px)}}
 /* Wide screens use a shallow transport strip; phones keep the stacked touch layout. */
 @media(min-width:1000px){
  .study{--dock-clearance:160px}
@@ -25,7 +28,7 @@
  .playback-controls{grid-column:1;grid-row:1;align-self:center}
  .speed-label{font-size:0;gap:0}
  .settings-toggle{grid-column:3;grid-row:1;align-self:center;margin:0;gap:10px}
- .stream-status,.transport>button:not(.settings-toggle){grid-column:1/-1;grid-row:2}
+ .transport>button:not(.settings-toggle){grid-column:1/-1;grid-row:2}
  .transport>button:not(.settings-toggle){justify-self:end}
  .stream-status{align-self:center;min-height:18px}
  .study .ms-study-timeline{grid-column:2;grid-row:1;--ms-timeline-height:4px}

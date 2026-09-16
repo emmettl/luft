@@ -1,0 +1,73 @@
+{
+  "date": "2026-09-14",
+  "sourceManifestSha256": "34a4a7449b38881827f35e87ec0278342bba60d4aac77316654551eb9392fd5c",
+  "airportReferenceSha256": "aa7ca36569820d40f422c994708e36f818426932e85e75da8131d6db61cda1f0",
+  "purpose": "Offline integration check against the pinned index and its retained airport reference; no release files modified.",
+  "population": "Canonical observed track segments, not verified flights or deduplicated airport movements.",
+  "before": {
+    "trackSegments": 40945,
+    "origin": {
+      "known": 0,
+      "unknownEndpoint": 18446,
+      "unknownContinent": 22499,
+      "continents": {
+        "AF": 0,
+        "AN": 0,
+        "AS": 0,
+        "EU": 0,
+        "NA": 0,
+        "OC": 0,
+        "SA": 0
+      },
+      "knownFraction": 0
+    },
+    "destination": {
+      "known": 0,
+      "unknownEndpoint": 18945,
+      "unknownContinent": 22000,
+      "continents": {
+        "AF": 0,
+        "AN": 0,
+        "AS": 0,
+        "EU": 0,
+        "NA": 0,
+        "OC": 0,
+        "SA": 0
+      },
+      "knownFraction": 0
+    }
+  },
+  "after": {
+    "trackSegments": 40945,
+    "origin": {
+      "known": 22499,
+      "unknownEndpoint": 18446,
+      "unknownContinent": 0,
+      "continents": {
+        "AF": 72,
+        "AN": 0,
+        "AS": 913,
+        "EU": 21514,
+        "NA": 0,
+        "OC": 0,
+        "SA": 0
+      },
+      "knownFraction": 0.549493222615704
+    },
+    "destination": {
+      "known": 22000,
+      "unknownEndpoint": 18945,
+      "unknownContinent": 0,
+      "continents": {
+        "AF": 48,
+        "AN": 0,
+        "AS": 1062,
+        "EU": 20890,
+        "NA": 0,
+        "OC": 0,
+        "SA": 0
+      },
+      "knownFraction": 0.5373061423861277
+    }
+  }
+}

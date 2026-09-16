@@ -62,6 +62,7 @@ test('search keyboard, empty intersections, removal and many pills keep the cont
 })
 
 test('compact phone layout reserves map space and boards scroll clear of the timeline',async({page})=>{
+ await page.setViewportSize({width:390,height:664})
  await ready(page);await add(page,'SWISS',/^SWISS/)
  const viewport=page.viewportSize()!,panel=await page.locator('aside').boundingBox(),footer=await page.locator('footer').boundingBox()
  if(viewport.width<700){expect(panel!.height).toBeLessThan(145);expect(footer!.y-panel!.y-panel!.height).toBeGreaterThan(viewport.height*.4)}
@@ -117,6 +118,8 @@ test('short phone viewport keeps search, playback and touch targets clear',async
  for(const locator of [page.locator('.play'),page.getByRole('button',{name:'View settings',exact:true}),page.getByRole('button',{name:'Zoom in'}),page.getByRole('button',{name:'Remove SWISS'})]){
   const box=await locator.boundingBox();expect(box!.height).toBeGreaterThanOrEqual(44)
  }
+ const details=await page.getByRole('button',{name:'Device details'}).boundingBox(),about=await page.locator('.method summary').boundingBox()
+ expect(about!.x-details!.x-details!.width).toBeGreaterThanOrEqual(8)
  await page.getByRole('combobox',{name:'Search flights'}).fill('LHR ZRH')
  await expect(page.getByRole('option',{name:/^LHR ↔ ZRH/})).toBeInViewport()
  await page.getByRole('option',{name:/^LHR ↔ ZRH/}).click()

@@ -1,3 +1,4 @@
+import release from '../package.json' with {type:'json'}
 import {pauseAtStart} from './playback-helpers'
 import {test,expect,type Page} from '@playwright/test'
 const add=async(page:Page,q:string)=>{await page.getByRole('combobox',{name:'Search flights'}).fill(q);await page.getByRole('combobox',{name:'Search flights'}).press('Enter')}
@@ -23,7 +24,7 @@ test('renderer switches preserve clock, carrier and airport; GPU draws and falls
  await expect(page.locator('.diagnostics')).toContainText(/[1-9]\d* GPU draw calls/)
  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{value:{writeText:async(text:string)=>{(window as any).__copiedResults=text}},configurable:true}))
  await page.getByRole('button',{name:'Copy results'}).click();await expect(page.locator('.diagnostics')).toContainText('Results copied')
- const copied=await page.evaluate(()=>JSON.parse((window as any).__copiedResults));expect(copied.renderer).toBe('three');expect(copied.release).toBe('0.3.1');expect(copied.gpu.calls).toBeGreaterThan(0);expect(copied.stagesP95Ms).toEqual(expect.objectContaining({sampling:expect.any(Number),geometry:expect.any(Number),submission:expect.any(Number)}));expect(copied.gpu.stateUploadBytes).toBeGreaterThan(0)
+ const copied=await page.evaluate(()=>JSON.parse((window as any).__copiedResults));expect(copied.renderer).toBe('three');expect(copied.release).toBe(release.version);expect(copied.gpu.calls).toBeGreaterThan(0);expect(copied.stagesP95Ms).toEqual(expect.objectContaining({sampling:expect.any(Number),geometry:expect.any(Number),submission:expect.any(Number)}));expect(copied.gpu.stateUploadBytes).toBeGreaterThan(0)
  await page.screenshot({path:`test-results/${test.info().project.name}-three.png`,fullPage:true})
  await page.getByRole('button',{name:'Reset measurements'}).click()
  await page.getByRole('button',{name:'Device details'}).click()

@@ -1,3 +1,4 @@
+import {airportLabelRanks,type AirportLabel} from './airport-labels'
 import React, {useEffect,useMemo,useRef,useState} from 'react'
 import {createRoot} from 'react-dom/client'
 import {airportBoardMovements} from '@motionstudies/core/domain/airport'
@@ -48,6 +49,8 @@ function Study({release}:{release:Release}) {
  const [chartStyle,setChartStyle]=useState<'bars'|'line'>('bars')
  const selectedAircraft=useMemo(()=>index.aircraft.filter(track=>matchesSelection(track,selection)),[index,selection])
  const selectedIds=useMemo(()=>new Set(selectedAircraft.map(track=>track.id)),[selectedAircraft])
+ const [airportLabels,setAirportLabels]=useState<AirportLabel[]>([])
+ const labelRanks=useMemo(()=>airportLabelRanks(index.airports,index.aircraft),[index])
  const selectedAirports=useMemo(()=>index.airports.filter(a=>selection.airports.includes(a.icao)),[index,selection.airports])
  const summary=useMemo(()=>selectionActivity(selectedAircraft,snapshots),[selectedAircraft,snapshots])
  const routes=useMemo(()=>observedRoutes(index.aircraft,index.airports),[index])
@@ -74,7 +77,7 @@ function Study({release}:{release:Release}) {
   updateUi()
  }
  useEffect(()=>{
-  const e=engine.current;map.current=new AirMap(canvas.current!,land,index.airports,{west:manifest.bounds[0],south:manifest.bounds[1],east:manifest.bounds[2],north:manifest.bounds[3]},accentCanvas.current!);let stopped=false,raf=0,last=performance.now(),lastDraw=0,lastUi=0
+  const e=engine.current;map.current=new AirMap(canvas.current!,land,index.airports,{west:manifest.bounds[0],south:manifest.bounds[1],east:manifest.bounds[2],north:manifest.bounds[3]},accentCanvas.current!,{ranks:labelRanks,onChange:setAirportLabels});let stopped=false,raf=0,last=performance.now(),lastDraw=0,lastUi=0
   const motionPreference=matchMedia('(prefers-reduced-motion: reduce)')
   const motionChanged=()=>map.current?.setMotionEffectsEnabled(!motionPreference.matches)
   motionChanged();motionPreference.addEventListener('change',motionChanged)
@@ -107,14 +110,25 @@ function Study({release}:{release:Release}) {
    if(!event.repeat)togglePlayback()
   };document.addEventListener('keydown',keydown)
   return()=>{stopped=true;rendererGeneration.current++;cancelAnimationFrame(raf);e.generation++;store.dispose();map.current?.dispose();document.removeEventListener('visibilitychange',visibility);document.removeEventListener('keydown',keydown);motionPreference.removeEventListener('change',motionChanged)}
- },[store,land,index])
+ },[store,land,index,labelRanks])
+ useEffect(()=>{
+  const elements=[...document.querySelectorAll('.study>header .identity,.study>header .date,.workspace aside,.map-caption,.view-controls,.study>footer,.airport-panel,.view-settings,.diagnostics,.flight-caption')]
+  const update=()=>{const origin=canvas.current?.getBoundingClientRect();if(!origin)return;map.current?.setLabelObstacles(elements.map(element=>{const r=element.getBoundingClientRect();return {left:r.left-origin.left-6,right:r.right-origin.left+6,top:r.top-origin.top-6,bottom:r.bottom-origin.top+6}}))}
+  const observer=new ResizeObserver(update);elements.forEach(element=>observer.observe(element));update()
+  return()=>observer.disconnect()
+ },[selection,boardOpen,settings,diagnostics,flight])
+ const selectAirportLabel=(a:Airport)=>{
+  if(!selection.airports.includes(a.icao))changeSelection({...selection,airports:[...selection.airports,a.icao]})
+  setFlight('');if(map.current)map.current.selectedFlight=undefined
+  setAirport(a);setBoardOpen(true)
+ }
  const choose=(a:Airport)=>{setAirport(a);setBoardOpen(true)}
  const selectFlight=(id:string)=>{const track=index.aircraft.find(t=>t.id===id);if(!track)return;setFlight(id);map.current!.selectedFlight=id;engine.current.playing=false
   const endpoint=track.origin?.icao===airport?.icao?track.origin:track.destination?.icao===airport?.icao?track.destination:undefined
   void seek(Math.min(track.end,Math.max(track.start,endpoint?.time??engine.current.time)))
  }
  const gesture=useRef(new MapGesture())
- const down=(event:React.PointerEvent)=>{canvas.current!.setPointerCapture(event.pointerId);gesture.current.down(event)}
+ const down=(event:React.PointerEvent)=>{event.currentTarget.setPointerCapture(event.pointerId);gesture.current.down(event)}
  const move=(event:React.PointerEvent)=>{if(map.current)gesture.current.move(event,map.current)}
  const up=(event:React.PointerEvent)=>{if(!gesture.current.up(event))return;const rect=canvas.current!.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;const point=map.current?.points.map(p=>({...p,d:Math.hypot(p.x-x,p.y-y)})).sort((a,b)=>a.d-b.d)[0];if(point&&point.d<20){setFlight(point.track.id);map.current!.selectedFlight=point.track.id}else{setFlight('');map.current!.selectedFlight=undefined}}
  const selected=useMemo(()=>flight?index.aircraft.find(t=>t.id===flight):undefined,[index,flight])
@@ -124,6 +138,7 @@ function Study({release}:{release:Release}) {
    <section className="stage" aria-label="Map of observed aircraft over Europe">
     <canvas ref={canvas} aria-label="Aircraft map. Drag to pan; pinch to zoom. Use search to filter airports, airlines and routes." onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={event=>gesture.current.cancel(event)} onLostPointerCapture={event=>gesture.current.cancel(event)} onWheel={e=>map.current?.zoom(e.deltaY>0?1.15:.87)}/>
     <canvas ref={accentCanvas} className="movement-layer" aria-hidden="true"/>
+    <div className="airport-labels" role="group" aria-label="Airports on the map">{airportLabels.map(label=><button key={label.airport.icao} className="airport-map-label" aria-label={`Select airport ${label.airport.iata||label.airport.icao} · ${label.airport.name}`} aria-pressed={label.selected} title={`${label.airport.name} · Open airport board`} style={{left:label.box.left,top:label.box.top,width:label.box.right-label.box.left}} onPointerDown={down} onPointerMove={move} onPointerUp={event=>{if(gesture.current.up(event))selectAirportLabel(label.airport)}} onPointerCancel={event=>gesture.current.cancel(event)} onLostPointerCapture={event=>gesture.current.cancel(event)} onClick={event=>{if(event.detail===0)selectAirportLabel(label.airport)}}><span aria-hidden="true">{label.text}</span></button>)}</div>
     <div className="map-caption"><div className="clock">{stamp(ui.time)}<small> UTC</small></div><div className="count">{mode==='density'?'Hourly density · 5-minute snapshots':`${ui.total.toLocaleString()} aircraft${selectionLabel?` · ${selectionLabel}`:' over Europe'}`}</div>{selectedAirports.length>0&&mode==='motion'&&<div className="airport-key"><span>● {ui.inbound} inbound</span><span>● {ui.outbound} outbound</span></div>}</div>
     {!engine.current.chunk&&<div className="initial-loading" role="status">{status}</div>}
     <div className="view-controls"><button onClick={()=>{map.current!.view={...map.current!.studyBounds}}}>Europe</button><button onClick={()=>{map.current!.view={...BRITAIN}}}>Britain</button>{airport&&<button onClick={()=>map.current!.focus(airport)}>Near {airport.iata||airport.icao}</button>}<button aria-label="Zoom in" onClick={()=>map.current?.zoom(.7)}>+</button><button aria-label="Zoom out" onClick={()=>map.current?.zoom(1.4)}>−</button></div>

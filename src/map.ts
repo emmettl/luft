@@ -5,6 +5,8 @@ import type {AircraftPainter} from './aircraft-painter'
 import {trackDirection} from './retained-trails'
 import {ACCENT_SECONDS,MovementAccents} from './movement-accents'
 import {VisibilityFades} from './visibility-fades'
+import {layoutAirportLabels,type AirportLabel} from './airport-labels'
+import type {MapLabelBox} from '@motionstudies/core/map-labels'
 export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
@@ -31,7 +33,16 @@ export class AirMap {
  private readonly observer:ResizeObserver
  private readonly frame=new PausedVehicleFrame()
  private readonly extents=new WeakMap<AirTrack,Extent>()
- private readonly defaultLabels:Airport[]
+ airportLabels:AirportLabel[]=[]
+ private labelKey=''
+ private labelObstacles:readonly MapLabelBox[]=[]
+ private obstacleKey=''
+ setLabelObstacles(boxes:readonly MapLabelBox[]){const key=JSON.stringify(boxes);if(key!==this.obstacleKey){this.obstacleKey=key;this.labelObstacles=boxes;this.revision++}}
+ private updateAirportLabels(codes:readonly string[]){
+  const key=`${this.projection}:${codes.join('|')}:${this.obstacleKey}`;if(key===this.labelKey)return;this.labelKey=key
+  this.airportLabels=layoutAirportLabels(this.airports,this.labelOptions?.ranks??new Map(this.airports.map((a,i)=>[a.icao,i])),new Set(codes),new Set(this.airportLabels.map(label=>label.airport.icao)),this.view.north-this.view.south,this.width,this.height,(lon,lat)=>this.project(lon,lat),this.labelObstacles)
+  this.labelOptions?.onChange(this.airportLabels)
+ }
  private resizeDirty=true;private dpr=0;private revision=0
  private projection='';private inputs?:{tracks:AirTrack[];airport?:Airport|readonly Airport[];mode:string;cells:number[][];selected?:string;matchingIds?:ReadonlySet<string>}
  private accentTracks:AirTrack[]=[]
@@ -44,11 +55,10 @@ export class AirMap {
  setMotionEffectsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;this.resetMotionEffects()}}
  resetMotionEffects(){this.fades.reset();this.resetAccents();this.revision++}
  resetAccents(){this.movements.reset();if(this.accentsPainted)this.accentContext?.clearRect(0,0,this.width,this.height);this.accentsPainted=false}
- constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement){
+ constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement,private readonly labelOptions?:{ranks:ReadonlyMap<string,number>;onChange:(labels:AirportLabel[])=>void}){
   this.accentContext=accentCanvas?.getContext('2d')??undefined
   this.view={...studyBounds}
   this.ctx=canvas.getContext('2d')!
-  this.defaultLabels=airports.filter(a=>['LHR','CDG','FRA','AMS','MAD','FCO','ZRH','IST'].includes(a.iata))
   this.observer=new ResizeObserver(()=>{this.resizeDirty=true});this.observer.observe(canvas)
  }
  dispose(){this.resetMotionEffects();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
@@ -134,6 +144,7 @@ export class AirMap {
  draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0,matchingIds?:ReadonlySet<string>) {
   const started=performance.now();this.fit()
   const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],codes=selectedAirports.map(a=>a.icao),hasAirports=codes.length>0
+  this.updateAirportLabels(codes)
   const previous=this.inputs
   if(!previous||previous.tracks!==tracks||previous.airport!==airport||previous.mode!==mode||previous.cells!==cells||previous.selected!==this.selectedFlight||previous.matchingIds!==matchingIds){
    this.revision++;this.inputs={tracks,airport,mode,cells,selected:this.selectedFlight,matchingIds}
@@ -189,8 +200,6 @@ export class AirMap {
    geometry=performance.now()-geometryStarted
   }
   if(mode==='motion'&&this.accentsEnabled)this.fades.end()
-  ctx.font='10px ui-monospace, monospace'
-  for(const a of repaintBase?(hasAirports?selectedAirports:this.defaultLabels):[]){const [x,y]=this.project(a.longitude,a.latitude);if(x<15||x>w-30||y<15||y>h-10)continue;ctx.strokeStyle=hasAirports?'#efe0bd':'#809096';ctx.lineWidth=.8;ctx.strokeRect(x-3,y-3,6,6);ctx.fillStyle=hasAirports?'#eee0c4':'#91a1a9';ctx.fillText(hasAirports?`${a.iata||a.icao} · ${cityLabel(a)}`:a.iata,x+8,y+3)}
   if(mode==='motion'&&this.accentsEnabled)this.paintAccents(this.accentTracks,time,accentClock)
   else this.resetAccents()
   this.renderedFrames++;this.durations.push(performance.now()-started);if(this.durations.length>300)this.durations.shift()

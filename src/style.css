@@ -48,3 +48,10 @@
 @media(min-width:1000px) and (max-height:620px){.workspace aside{top:8px}}
 
 .filter-display{display:flex;align-items:center;gap:10px;min-height:44px;font-size:12px;cursor:pointer;border-top:1px solid #2d4350}.filter-display input{width:18px;height:18px;margin:0;accent-color:#dac299}.view-settings #filter-display-note{margin:0 0 12px;font-size:10px}
+
+.airport-labels{position:absolute;inset:0;z-index:2;pointer-events:none}
+.airport-map-label{position:absolute;display:flex;align-items:center;gap:7px;height:44px;min-height:44px;min-width:44px;padding:0 5px;border:0;border-radius:5px;background:none;color:#a9bec8;font:11px ui-monospace,monospace;text-align:left;text-shadow:0 1px 3px #080f19,0 0 4px #080f19;pointer-events:auto;touch-action:none}
+.airport-map-label::before{content:'';flex:none;width:5px;height:5px;border:1px solid currentColor}
+.airport-map-label>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.airport-map-label[aria-pressed=true]{color:#efce99}
+.airport-map-label:hover,.airport-map-label:focus-visible{background:#172a37e8;color:#fff0d5}

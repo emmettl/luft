@@ -2,15 +2,16 @@ import type {AirTrack} from '@motionstudies/core/domain/air'
 
 export type TrailBucket={from:Float32Array;to:Float32Array;aircraft:Float32Array;start:number;end:number}
 export type TrailLayer={buckets:TrailBucket[];heads:Float32Array}
-export function trackDirection(track:Pick<AirTrack,'origin'|'destination'>,airport?:string){
- return airport?(track.destination?.icao===airport?'inbound':track.origin?.icao===airport?'outbound':undefined):undefined
+export function trackDirection(track:Pick<AirTrack,'origin'|'destination'>,airport?:string|readonly string[]){
+ const codes=typeof airport==='string'?[airport]:airport
+ return codes?.length?(codes.includes(track.destination?.icao??'')?'inbound':codes.includes(track.origin?.icao??'')?'outbound':undefined):undefined
 }
 /** Immutable sample geometry for one chunk/filter/selection. Minute buckets let
  * the renderer skip whole blocks outside the trailing window without uploading.
  * Shaders apply exact sample boundaries within the remaining blocks. Heads and
  * partial segments use the shared CPU sampler's exact Hermite position.
  */
-export function buildTrailLayers(tracks:AirTrack[],airport?:string,selected?:string):TrailLayer[]{
+export function buildTrailLayers(tracks:AirTrack[],airport?:string|readonly string[],selected?:string):TrailLayer[]{
  const groups=[0,1,2].map(()=>({buckets:new Map<number,{from:number[];to:number[];aircraft:number[]}>(),heads:[] as number[]}))
  tracks.forEach((track,index)=>{
   const direction=trackDirection(track,airport),layer=track.id===selected?2:direction?1:0,code=direction==='inbound'?1:direction==='outbound'?2:0,g=groups[layer]

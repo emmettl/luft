@@ -4,7 +4,7 @@ export type AircraftStats={calls:number;triangles:number;points:number;geometryB
 /** Retained aircraft backend. Shared CPU sampling still owns validity, counts and picking. */
 export interface AircraftPainter {
  begin(width:number,height:number,dpr:number,projection:AircraftProjection,time:number):void
- prepare(tracks:AirTrack[],airport?:string,selected?:string):void
+ prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string):void
  aircraft(index:number,position:AirPosition|undefined,visible:boolean):void
  end():void
  clear():void

@@ -18,7 +18,7 @@ test('Space toggles playback once per press without scrolling or stealing contro
  await page.keyboard.press('Shift+Space')
  await expect(play).toHaveText('Play')
 
- const search=page.getByRole('combobox',{name:'Find an airport'})
+ const search=page.getByRole('combobox',{name:'Search flights'})
  await search.fill('London')
  await search.press('Space')
  await expect(search).toHaveValue('London ')
@@ -33,6 +33,7 @@ test('Space toggles playback once per press without scrolling or stealing contro
  await page.keyboard.press('Space')
  await expect(play).toHaveText('Play')
 
+ await page.getByRole('button',{name:'View settings',exact:true}).click()
  await page.getByRole('button',{name:'Hour density',exact:true}).click()
  await page.locator('canvas').click({position:{x:10,y:10},force:true})
  await page.keyboard.press('Space')

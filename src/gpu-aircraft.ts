@@ -75,10 +75,11 @@ export class GpuAircraftPainter implements AircraftPainter {
   this.uniforms.projection.value.set(projection.xScale,projection.yScale,projection.xOffset,projection.yOffset)
   this.uniforms.studyTime.value=time;this.geometryPreparedBytes=0;this.updateBucketVisibility()
  }
- prepare(tracks:AirTrack[],airport?:string,selected?:string){
-  if(tracks===this.tracks&&airport===this.airport&&selected===this.selected)return
-  this.tracks=tracks;this.airport=airport;this.selected=selected;this.builds++
-  this.uniforms.airportSelected.value=airport?1:0
+ prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string){
+  const airportKey=typeof airport==='string'?airport:airport?.join('|')
+  if(tracks===this.tracks&&airportKey===this.airport&&selected===this.selected)return
+  this.tracks=tracks;this.airport=airportKey;this.selected=selected;this.builds++
+  this.uniforms.airportSelected.value=airportKey?1:0
   const width=Math.min(1024,this.renderer.capabilities.maxTextureSize,Math.max(1,tracks.length)),height=Math.max(1,Math.ceil(tracks.length/width))
   if(height>this.renderer.capabilities.maxTextureSize)throw Error('Aircraft texture exceeds device capacity')
   this.texture.dispose();this.state=new Float32Array(width*height*4)

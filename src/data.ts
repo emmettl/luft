@@ -1,3 +1,6 @@
+import airlineDataUrl from './generated/airlines.json?url'
+import type {AirlineSummaries} from './airlines'
+import dataLock from '../data-release.json'
 import type { AirTrack } from '@motionstudies/core/domain/air'
 import type { AirSearchTrack } from '@motionstudies/core/air-search'
 import type { StudyAirport } from '@motionstudies/core/domain/airport'
@@ -26,8 +29,9 @@ export async function loadRelease() {
  const r=await fetch(new URL('manifest.json',root)); if(!r.ok) throw new Error(`Release unavailable (${r.status})`)
  const manifest:Manifest=await r.json()
  if(manifest.kind!=='air-day-release'||manifest.schemaVersion!==1||manifest.chunks.length!==144) throw new Error('Unsupported air release')
- const [index,land]=await Promise.all([verifiedJson<Index>(manifest.index),verifiedJson<Land>(manifest.land)])
- return {manifest,index,land}
+ const [index,land,airlineSummaries]=await Promise.all([verifiedJson<Index>(manifest.index),verifiedJson<Land>(manifest.land),fetch(airlineDataUrl).then(async r=>{if(!r.ok)throw new Error('Airline data unavailable');return await r.json() as AirlineSummaries})])
+ if(airlineSummaries.date!==manifest.date||airlineSummaries.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Airline data belongs to another release')
+ return {manifest,index,land,airlineSummaries}
 }
 export class ChunkStore {
  cache=new Map<number,Chunk>()

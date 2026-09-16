@@ -5,3 +5,6 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 @media(max-width:730px){.workspace aside,.workspace aside.has-airport{display:contents}.search{order:0}.stage{order:1}.selection-toolbar{order:2;margin:0}.ms-airport-hero{order:3}.association-note{order:4;margin-top:0}}
+
+.airline-picker{margin-top:18px}.airline-picker label{display:block;font:10px ui-monospace,monospace;letter-spacing:.09em;text-transform:uppercase;color:#b5c4cd;margin-bottom:9px}.airline-picker select{width:100%;min-height:42px;text-align:left;background:#101c28}.airline-evidence{font-size:10px;line-height:1.6;margin-top:9px}.airline-evidence strong{display:block;font-weight:450;color:#c7d4db}.airline-evidence span{display:block;margin-top:4px;color:#829aa7}.activity-label{font:9px ui-monospace,monospace;color:#8ca3b0;margin-bottom:8px}.airline-picker+.intro{padding-top:24px}
+@media(max-width:730px){.airline-picker{order:0;margin-top:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px 14px}.airline-picker label{font-size:9px;margin:0}.airline-picker select{min-height:38px}.airline-evidence{grid-column:1/-1;margin:0;font-size:9px}.airline-evidence span{margin:0}.activity-label{font-size:8px;line-height:1.5}}

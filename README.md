@@ -6,6 +6,14 @@ A recorded day of aircraft movement over Europe. A Motion Studies research editi
 
 Search by airport, city, IATA or ICAO code. Selecting an airport keeps the wider European view, highlights inbound tracks in blue and outbound tracks in gold, and dims unrelated traffic. The shared Motion Studies airport card shows observed departure/arrival associations near the study clock. Select a board flight to seek to its observed boundary and highlight the track. “Near” offers a closer view; Europe restores the opening extent. Drag/pinch or use the zoom controls.
 
+## Follow an airline
+
+Select easyJet, SWISS or British Airways to follow its observed network through the day. The selection applies to moving tracks, airport boards, the daily activity strip and hourly density. It preserves the clock, playback pace and selected airport. Clear it with “All aircraft”.
+
+The filter uses operating callsigns: easyJet groups EZY/EJU/EZS; SWISS uses SWR; British Airways groups BAW/SHT/CFE/EFW. These identifiers were checked against the [FAA airline designator table](https://www.faa.gov/air_traffic/publications/atpubs/cnt_html/chap3_section_3.html). This is not ownership or marketing codeshare matching: unidentified callsigns and partner-operated flights can be missing. The recorded day contains 361 easyJet, 97 SWISS and 264 BA-group aircraft identities within the study window, not their entire worldwide fleets.
+
+`npm run dev` and `npm run build` first calculate airline summaries from the verified, pinned recorder chunks. Delivery overlap is excluded and aircraft identities are deduplicated. The generated, ignored `src/generated/airlines.json` becomes a separate hashed asset (about 635 kB before HTTP compression). No paid API calls, API keys or recorder changes are needed, and playback still streams only nearby chunks. Run a build before the unit tests on a fresh checkout.
+
 ## Run
 
 Node 24+, npm 11.19.0:
@@ -19,8 +27,8 @@ npm run dev
 The app is served beneath `/luft/`. `npm run data:fetch` downloads the **explicitly pinned** recorder archive in `data-release.json`, verifies its archive and manifest hashes, then verifies every file. Existing local data is checked, never silently overwritten. `public/data/` is generated and ignored. No sibling checkout, private API key or recorder runtime is needed.
 
 ```sh
-npm test
 npm run build
+npm test
 npx playwright install chromium webkit
 npm run test:browser
 ```
@@ -45,7 +53,7 @@ The browser verifies each compressed chunk's SHA-256. A short look-ahead cache s
 
 “Device details” shows local map draw p95, cached chunk count and downloaded track bytes. These measurements stay on the device. Draw timing excludes decoding/layout/network and is not a frame-rate benchmark. During buffering, the last displayed chunk can remain referenced in addition to the four desired cache entries. At 15 minutes per second, a ten-minute chunk is consumed in two-thirds of a second, so bandwidth and decoding still matter: this public build enables real-phone evaluation, it does not establish real-phone performance.
 
-Desktop Chromium and phone-sized WebKit on a Mac passed airport search, the shared card, map selection, fast chunk rollover, missing-data hold/retry and horizontal overflow checks. The browser tests are not a physical iPhone test. Hour density is relative within each hour and cannot compare volume between hours. Reception coverage is uneven; missing observations do not mean no flights.
+Desktop Chromium and phone-sized WebKit on a Mac passed airport search, the shared card, map selection, fast chunk rollover, missing-data hold/retry and horizontal overflow checks. The browser tests are not a physical iPhone test. Hour density is relative within each selected airline/hour and cannot compare volume between airlines or hours. Reception coverage is uneven; missing observations do not mean no flights.
 
 ## Data and code
 

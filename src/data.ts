@@ -1,6 +1,7 @@
 import airlineDataUrl from './generated/airlines.json?url'
 import type {AirlineCatalogue,AirlineData,AirlineId,AirlineSummary} from './airlines'
 import dataLock from '../data-release.json'
+import {decodeVerified,TrackDiskCache} from './chunk-cache'
 import type { AirTrack } from '@motionstudies/core/domain/air'
 import type { AirSearchTrack } from '@motionstudies/core/air-search'
 import type { StudyAirport } from '@motionstudies/core/domain/airport'
@@ -15,15 +16,7 @@ const root = new URL(`${import.meta.env.BASE_URL}data/`,location.origin)
 export async function verifiedJson<T>(descriptor:Descriptor,signal?:AbortSignal):Promise<T> {
  const response=await fetch(new URL(descriptor.path,root),{signal})
  if(!response.ok) throw new Error(`Data request failed (${response.status})`)
- const bytes=await response.arrayBuffer()
- if(bytes.byteLength!==descriptor.bytes) throw new Error('Incomplete data download')
- const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('')
- if(hash!==descriptor.sha256) throw new Error('Data integrity check failed')
- if(descriptor.path.endsWith('.gz.bin')) {
-  const blob=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
-  return JSON.parse(await new Response(blob).text())
- }
- return JSON.parse(new TextDecoder().decode(bytes))
+ return decodeVerified<T>(descriptor,await response.arrayBuffer())
 }
 export async function loadRelease() {
  const r=await fetch(new URL('manifest.json',root)); if(!r.ok) throw new Error(`Release unavailable (${r.status})`)
@@ -49,8 +42,12 @@ export class ChunkStore {
  cache=new Map<number,Chunk>()
  pending=new Map<number,{controller:AbortController;promise:Promise<Chunk>}>()
  wanted=new Set<number>()
- downloadedBytes=0
- constructor(readonly descriptors:ChunkDescriptor[], readonly loader=verifiedJson<Chunk>) {}
+ readonly disk?:TrackDiskCache
+ readonly loader:(descriptor:ChunkDescriptor,signal?:AbortSignal)=>Promise<Chunk>
+ constructor(readonly descriptors:ChunkDescriptor[],loader?:((descriptor:ChunkDescriptor,signal?:AbortSignal)=>Promise<Chunk>)){
+  if(loader)this.loader=loader
+  else{const disk=this.disk=new TrackDiskCache(descriptors,root);this.loader=(d,signal)=>disk.load<Chunk>(d,signal)}
+ }
  retain(index:number) {
   this.wanted=new Set(Array.from({length:Math.min(4,this.descriptors.length)},(_,offset)=>(index+offset)%this.descriptors.length))
   for(const k of this.cache.keys()) if(!this.wanted.has(k)) this.cache.delete(k)
@@ -62,7 +59,6 @@ export class ChunkStore {
   const controller=new AbortController()
   const promise=this.loader(this.descriptors[index],controller.signal).then(chunk=>{
    if(controller.signal.aborted) throw new DOMException('Cancelled','AbortError')
-   this.downloadedBytes+=this.descriptors[index].bytes
    if(this.wanted.has(index)) this.cache.set(index,chunk)
    return chunk
   }).finally(()=>{if(this.pending.get(index)?.controller===controller)this.pending.delete(index)})

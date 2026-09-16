@@ -1,9 +1,11 @@
-# Canvas / Three.js comparison — LUFT 0.2.1
+# Canvas / Three.js comparison — LUFT 0.2.2
 
 - [Canvas](https://emmettl.github.io/luft/?renderer=canvas)
 - [Three.js](https://emmettl.github.io/luft/?renderer=three)
 
 Choose **Aircraft renderer** to switch without losing the clock, map view, carrier or airport. Canvas remains the default. Three.js loads on demand. WebGL failure or context loss returns to Canvas with a visible explanation. **Device details** shows the version; refresh an older tab before comparing.
+
+Version 0.2.2 adds [persistent compressed chunk reuse](CHUNK-CACHE.md), while retaining the same renderer. Warming a section now populates a disk cache as well as the four-chunk decoded RAM window. The response counter no longer labels HTTP-cache responses as downloads.
 
 ## Windows Edge comparison
 

@@ -70,3 +70,7 @@ Aircraft data and this derived database: **ADSB.lol and its contributors, [ODbL 
 Airport reference: [OurAirports](https://ourairports.com/data/), public domain. Land context: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain, pinned geography SHA-256 in the manifest. Code: MIT. Dependencies on `@motionstudies/core` and `@motionstudies/web` are exactly pinned in `package.json`, including the shared airport search, movement board, card, timeline and trajectory interpolation.
 
 Airline marks are bundled SVG assets, displayed in their original colours for identification. See [logo sources and notices](src/assets/airlines/README.md); these marks are separate from the code and aircraft-data licences.
+
+## Replaying cached data
+
+LUFT keeps four decoded chunks in RAM and saves verified compressed chunks on device for loops, backward seeks and reloads. Device details separates fetch response bytes from local-cache reuse. See [chunk-cache behaviour](docs/CHUNK-CACHE.md) for limits and fallback behaviour.

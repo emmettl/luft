@@ -19,7 +19,7 @@ test('renderer switches preserve clock, carrier and airport; GPU draws and falls
  await expect(page.locator('.diagnostics')).toContainText(/[1-9]\d* GPU draw calls/)
  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{value:{writeText:async(text:string)=>{(window as any).__copiedResults=text}},configurable:true}))
  await page.getByRole('button',{name:'Copy results'}).click();await expect(page.locator('.diagnostics')).toContainText('Results copied')
- const copied=await page.evaluate(()=>JSON.parse((window as any).__copiedResults));expect(copied.renderer).toBe('three');expect(copied.release).toBe('0.2.1');expect(copied.gpu.calls).toBeGreaterThan(0);expect(copied.stagesP95Ms).toEqual(expect.objectContaining({sampling:expect.any(Number),geometry:expect.any(Number),submission:expect.any(Number)}));expect(copied.gpu.stateUploadBytes).toBeGreaterThan(0)
+ const copied=await page.evaluate(()=>JSON.parse((window as any).__copiedResults));expect(copied.renderer).toBe('three');expect(copied.release).toBe('0.2.2');expect(copied.gpu.calls).toBeGreaterThan(0);expect(copied.stagesP95Ms).toEqual(expect.objectContaining({sampling:expect.any(Number),geometry:expect.any(Number),submission:expect.any(Number)}));expect(copied.gpu.stateUploadBytes).toBeGreaterThan(0)
  await page.screenshot({path:`test-results/${test.info().project.name}-three.png`,fullPage:true})
  await page.getByRole('button',{name:'Reset measurements'}).click()
  await page.getByRole('button',{name:'Device details'}).click()

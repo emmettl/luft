@@ -90,3 +90,11 @@ Airline marks are bundled SVG assets, displayed in their original colours for id
 ## Replaying cached data
 
 LUFT keeps four decoded chunks in RAM and saves verified compressed chunks on device for loops, backward seeks and reloads. Device details separates fetch response bytes from local-cache reuse. See [chunk-cache behaviour](docs/CHUNK-CACHE.md) for limits and fallback behaviour.
+
+## Destination evidence
+
+The arrow button beside flight search opens **Destinations & continents**. Select arrival or departure, a continent or an airport. Observed and corroborated labels are enabled by default; route-reference candidates require the explicit checkbox. Conflicting evidence stays unresolved. Coverage reports canonical track segments before the endpoint filter, within the existing airline/country/airport/route selection. Unfiltered playback still includes unknown endpoints.
+
+The pinned `enrichment-release.json` descriptor binds `public/enrichment/endpoints.json.gz.bin` to the exact recorded release. Build and browser checks verify its hash and track identities. Published source reports and attribution are retained in `public/enrichment/reports/`. The recorder export command and method are documented in [the recorder](https://github.com/emmettl/motionstudies-recorder/blob/main/docs/AIR-ENDPOINT-EXPORT.md).
+
+For September 14, the default labels cover 22,508 origins and 22,008 destinations out of 40,945 segments: 9 origins and 8 destinations are corroborated across separated observations. Another 14,018 labels are candidate-only and 17 conflicting proposals stay excluded. These are not independently confirmed flights. Selected-flight captions distinguish the evidence. Existing airport boards, country/airport/route search and movement rings continue to use recorded endpoint evidence; enrichment adds no event times or trajectory samples. Continents follow airport geography, including African labels for the Canary Islands.

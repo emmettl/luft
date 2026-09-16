@@ -7,8 +7,8 @@ import {observedRoutes,type Selection} from './filters'
 
 const logos=import.meta.glob('./assets/airlines/*.svg',{eager:true,query:'?url',import:'default'}) as Record<string,string>
 type Result={type:keyof Selection;id:string;label:string;detail:string}
-type Props={countries:Country[];airports:Airport[];routes:ReturnType<typeof observedRoutes>;selection:Selection;onChange:(selection:Selection)=>void;onAirportBoard:(airport:Airport)=>void;onCountryFocus:(code:string)=>void}
-export function FlightSearch({countries,airports,routes,selection,onChange,onAirportBoard,onCountryFocus}:Props){
+type Props={onClear:()=>void;onEndpoints:()=>void;endpointsOpen:boolean;endpointActive:boolean;countries:Country[];airports:Airport[];routes:ReturnType<typeof observedRoutes>;selection:Selection;onChange:(selection:Selection)=>void;onAirportBoard:(airport:Airport)=>void;onCountryFocus:(code:string)=>void}
+export function FlightSearch({onClear,onEndpoints,endpointsOpen,endpointActive,countries,airports,routes,selection,onChange,onAirportBoard,onCountryFocus}:Props){
  const [query,setQuery]=useState(''),[open,setOpen]=useState(false),[active,setActive]=useState(0)
  const root=useRef<HTMLDivElement>(null)
  const input=useRef<HTMLInputElement>(null)
@@ -62,12 +62,12 @@ export function FlightSearch({countries,airports,routes,selection,onChange,onAir
    if(event.key==='ArrowUp'){event.preventDefault();setActive(i=>Math.max(0,i-1))}
    if(event.key==='Enter'&&open&&results[active]){event.preventDefault();add(results[active])}
    if(event.key==='Escape'){setOpen(false);input.current?.blur()}
-  }}/>{open&&<button className="search-close" aria-label="Close search" onClick={()=>{setOpen(false);input.current?.blur()}}>×</button>}</div>
+  }}/><button className="endpoint-toggle" aria-label="Destination and continent filters" aria-expanded={endpointsOpen} data-active={endpointActive||undefined} title="Destinations & continents" onClick={()=>{setOpen(false);onEndpoints()}}>⇢</button>{open&&<button className="search-close" aria-label="Close search" onClick={()=>{setOpen(false);input.current?.blur()}}>×</button>}</div>
   {pills.length>0&&<div className="filter-pills" role="group" aria-label="Selected filters">{pills.map(pill=><div className={`filter-pill filter-pill--${pill.type}`} key={`${pill.type}:${pill.id}`}>
    {pill.type==='airlines'&&logos[`./assets/airlines/${pill.id}.svg`]&&<img src={logos[`./assets/airlines/${pill.id}.svg`]} alt=""/>}
    {pill.type==='airports'?<button className="pill-label" title={`Open ${pill.detail} board`} onClick={()=>onAirportBoard(airports.find(a=>a.icao===pill.id)!)}>{pill.label}</button>:pill.type==='countries'?<button className="pill-label" title={`Focus ${pill.label}`} onClick={()=>onCountryFocus(pill.id)}>{pill.label}</button>:<span title={pill.detail}>{pill.label}</span>}
    <button className="pill-remove" aria-label={`Remove ${pill.label}`} onClick={()=>remove(pill.type,pill.id)}>×</button>
-  </div>)}<button className="clear-filters" onClick={()=>onChange({airports:[],airlines:[],routes:[],countries:[]})}>Clear all</button></div>}
+  </div>)}<button className="clear-filters" onClick={()=>{onChange({airports:[],airlines:[],routes:[],countries:[]});onClear()}}>Clear all</button></div>}
   {open&&<div ref={popover} className="search-popover"><p className="search-guidance">Countries select flights linked to their airports. Combine groups to narrow the view.</p><div id="flight-results" role="listbox" aria-label="Flight filters">{results.map((result,i)=><React.Fragment key={`${result.type}:${result.id}`}>{(i===0||results[i-1].type!==result.type)&&<div className="result-heading" role="presentation">{names[result.type]}</div>}<button type="button" id={`flight-result-${i}`} role="option" aria-selected={active===i} onPointerDown={event=>{if(event.pointerType==='mouse')event.preventDefault()}} onClick={()=>add(result)}><strong>{result.label}</strong><span>{result.detail}</span><span aria-hidden="true">+</span></button></React.Fragment>)}{!results.length&&<p className="search-empty">No matches. Try a country, airport code, airline or route.</p>}</div></div>}
  </div>
 }

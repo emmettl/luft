@@ -117,7 +117,8 @@ test('short phone viewport keeps search, playback and touch targets clear',async
  const search=await page.locator('aside').boundingBox(),footer=await page.locator('footer').boundingBox()
  expect(footer!.y-search!.y-search!.height).toBeGreaterThan(140)
  for(const locator of [page.locator('.play'),page.getByRole('button',{name:'View settings',exact:true}),page.getByRole('button',{name:'Zoom in'}),page.getByRole('button',{name:'Remove SWISS'})]){
-  const box=await locator.boundingBox();expect(box!.height).toBeGreaterThanOrEqual(44)
+  // WebKit can report 43.99999 for a transformed 44 CSS-pixel control.
+  const box=await locator.boundingBox();expect(Math.round(box!.height*100)/100).toBeGreaterThanOrEqual(44)
  }
  const details=await page.getByRole('button',{name:'Device details'}).boundingBox(),about=await page.locator('.method summary').boundingBox()
  expect(about!.x-details!.x-details!.width).toBeGreaterThanOrEqual(8)

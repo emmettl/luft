@@ -37,3 +37,5 @@
 
 /* Keep long suggestion lists above the playback dock on small screens. */
 .workspace aside:has(.search-popover){z-index:7}
+
+.stage .movement-layer{z-index:2;pointer-events:none}

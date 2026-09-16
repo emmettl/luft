@@ -3,6 +3,7 @@ import { PausedVehicleFrame } from '@motionstudies/core/render-frame'
 import type { Airport, Land } from './data'
 import type {AircraftPainter} from './aircraft-painter'
 import {trackDirection} from './retained-trails'
+import {ACCENT_SECONDS,MovementAccents} from './movement-accents'
 export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
@@ -33,13 +34,20 @@ export class AirMap {
  private resizeDirty=true;private dpr=0;private revision=0
  private projection='';private inputs?:{tracks:AirTrack[];airport?:Airport|readonly Airport[];mode:string;cells:number[][];selected?:string}
  private counts={total:0,inbound:0,outbound:0,visible:0}
- constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE){
+ private readonly movements=new MovementAccents()
+ private readonly accentContext?:CanvasRenderingContext2D
+ private accentsPainted=false
+ private accentsEnabled=true
+ setAccentsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;this.resetAccents()}}
+ resetAccents(){this.movements.reset();if(this.accentsPainted)this.accentContext?.clearRect(0,0,this.width,this.height);this.accentsPainted=false}
+ constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement){
+  this.accentContext=accentCanvas?.getContext('2d')??undefined
   this.view={...studyBounds}
   this.ctx=canvas.getContext('2d')!
   this.defaultLabels=airports.filter(a=>['LHR','CDG','FRA','AMS','MAD','FCO','ZRH','IST'].includes(a.iata))
   this.observer=new ResizeObserver(()=>{this.resizeDirty=true});this.observer.observe(canvas)
  }
- dispose(){this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
+ dispose(){this.resetAccents();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
  private fit(){
   const dpr=Math.min(2,devicePixelRatio||1)
   if(this.resizeDirty||this.dpr!==dpr){
@@ -49,6 +57,7 @@ export class AirMap {
    this.topClearance=parseFloat(style.getPropertyValue('--luft-map-top'))||0
    this.canvas.width=Math.round(width*dpr);this.canvas.height=Math.round(height*dpr)
    this.ctx.setTransform(dpr,0,0,dpr,0,0);this.projection='';this.baseKey=''
+   if(this.accentCanvas){this.accentCanvas.width=this.canvas.width;this.accentCanvas.height=this.canvas.height;this.accentContext?.setTransform(dpr,0,0,dpr,0,0)}
   }
   const key=[this.width,this.height,this.view.west,this.view.south,this.view.east,this.view.north].join(':')
   if(key===this.projection)return
@@ -92,6 +101,22 @@ export class AirMap {
  }
  pan(dx:number,dy:number){const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
  focus(airport:Airport){this.view={west:airport.longitude-8,east:airport.longitude+8,south:airport.latitude-5,north:airport.latitude+5}}
+ private paintAccents(tracks:AirTrack[],time:number,clock:number){
+  const ctx=this.accentContext;if(!ctx)return
+  const accents=this.movements.advance(tracks,time,clock)
+  if(!accents.length&&!this.accentsPainted)return
+  ctx.clearRect(0,0,this.width,this.height);this.accentsPainted=accents.length>0
+  for(const event of accents){
+   const [x,y]=this.project(event.longitude,event.latitude)
+   if(x<-14||x>this.width+14||y<-14||y>this.height+14)continue
+   const progress=Math.max(0,Math.min(1,(clock-event.started)/ACCENT_SECONDS))
+   const radius=event.kind==='departure'?2+6*progress:8-6*progress
+   ctx.globalAlpha=.55*Math.sin(Math.PI*progress)
+   ctx.strokeStyle=event.kind==='departure'?'#efbd72':'#81d9f1';ctx.lineWidth=1.2
+   ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.stroke()
+  }
+  ctx.globalAlpha=1
+ }
  private outside(track:AirTrack,p:AirPosition){
   let extent=this.extents.get(track)
   if(!extent){extent={west:Infinity,east:-Infinity,south:Infinity,north:-Infinity};for(const s of track.samples){extent.west=Math.min(extent.west,s[1]);extent.east=Math.max(extent.east,s[1]);extent.south=Math.min(extent.south,s[2]);extent.north=Math.max(extent.north,s[2])}this.extents.set(track,extent)}
@@ -102,7 +127,7 @@ export class AirMap {
    this.top+(this.view.north-Math.min(extent.south,p.latitude))*this.scale < -4 ||
    this.top+(this.view.north-Math.max(extent.north,p.latitude))*this.scale > this.height+4
  }
- draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][]) {
+ draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0) {
   const started=performance.now();this.fit()
   const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],codes=selectedAirports.map(a=>a.icao),hasAirports=codes.length>0
   const previous=this.inputs
@@ -157,6 +182,8 @@ export class AirMap {
   }
   ctx.font='10px ui-monospace, monospace'
   for(const a of repaintBase?(hasAirports?selectedAirports:this.defaultLabels):[]){const [x,y]=this.project(a.longitude,a.latitude);if(x<15||x>w-30||y<15||y>h-10)continue;ctx.strokeStyle=hasAirports?'#efe0bd':'#809096';ctx.lineWidth=.8;ctx.strokeRect(x-3,y-3,6,6);ctx.fillStyle=hasAirports?'#eee0c4':'#91a1a9';ctx.fillText(hasAirports?`${a.iata||a.icao} · ${cityLabel(a)}`:a.iata,x+8,y+3)}
+  if(mode==='motion'&&this.accentsEnabled)this.paintAccents(tracks,time,accentClock)
+  else this.resetAccents()
   this.renderedFrames++;this.durations.push(performance.now()-started);if(this.durations.length>300)this.durations.shift()
   this.stages.push({setup,sampling,geometry,submission});if(this.stages.length>300)this.stages.shift()
   this.frame.record(frameTime,this.revision)

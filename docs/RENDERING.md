@@ -42,3 +42,13 @@ Unit tests cover idle invalidation, cached land, resize/selection/data changes, 
 ## Retained GPU follow-up — 0.2.1
 
 The first Windows Edge comparison favoured Canvas. The follow-up retains timestamped trails in minute batches, updates aircraft state in a compact texture, and exposes CPU stage timings. Canvas stays the default. See [the comparison guide](COMPARISON.md) for the rendering contract, device procedure, limitations and evidence; the earlier Canvas table above is not a measurement of this GPU change.
+
+## Movement accents · 0.3.6
+
+A small gold ring expands at an observed departure, and a cyan ring contracts at an observed arrival. These are the existing airport-linked endpoint observations, not confirmed wheels-up or touchdown events. An endpoint must carry `observed-endpoint` evidence and have a valid locally sampled position; ordinary chunk starts/ends and coverage gaps do not generate hints.
+
+Events are cached per track array and deduplicated by aircraft, kind, airport and time. The accent lasts one second on a separate playback animation clock, independent of study pace. It freezes while paused, buffering or scrubbing; explicit seeks, filter changes, backwards loops and density mode clear it. Reduced-motion preference disables the effect. A landing hint can finish at its observed location after its aircraft leaves the active samples.
+
+Canvas and Three.js share a small decorative 2D overlay. It does not intercept pointer input or invalidate the cached land/GPU background. Overlay painting contributes to total map CPU draw time; it is separate from the aircraft geometry/submission stage measurements. The overlay clears only while hints are present or ending. It adds one viewport-sized canvas at the existing capped pixel ratio.
+
+Validation covers evidence and interpolation gaps, deduplication, pause/expiry/reset behaviour, pixel output and colours in both render paths, retained GPU geometry, reduced motion, filtering, touch input and playback. Local results: 27 unit/data checks and 25 Chromium checks pass; two profiling scenarios remain opt-in.

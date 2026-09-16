@@ -6,7 +6,7 @@ test('Space toggles playback once per press without scrolling or stealing contro
  const play=page.locator('.play')
  await pauseAtStart(page)
  // An unfocused map/background owns the playback shortcut.
- await page.locator('canvas').click({position:{x:10,y:10},force:true})
+ await page.locator('canvas[aria-label]').click({position:{x:10,y:10},force:true})
  const scroll=await page.evaluate(()=>({x:scrollX,y:scrollY}))
  await page.keyboard.down('Space')
  await expect(play).toHaveText('Pause')
@@ -36,7 +36,7 @@ test('Space toggles playback once per press without scrolling or stealing contro
 
  await page.getByRole('button',{name:'View settings',exact:true}).click()
  await page.getByRole('button',{name:'Hour density',exact:true}).click()
- await page.locator('canvas').click({position:{x:10,y:10},force:true})
+ await page.locator('canvas[aria-label]').click({position:{x:10,y:10},force:true})
  await page.keyboard.press('Space')
  await expect(play).toBeDisabled();await expect(play).toHaveText('Play')
 })

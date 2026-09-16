@@ -20,3 +20,11 @@ Hour density uses these five-minute observations in half-degree cells. This chan
 - 17 Chromium browser checks pass, including combined selections, unknown/empty intersections, route search, clear/remove, short phone layouts, keyboard viewport resizing, 44px primary touch targets, keyboard behaviour, fast playback, looping, GPU fallback and disk-cache reuse. Two profiling checks remain opt-in.
 - Visual inspection at 390×730 and automated 375×600 checks reserve space for the map and keep attribution, search and timeline within the viewport.
 - Local WebKit can open a data URL but stalls before HTTP navigation; GitHub Actions passed the WebKit/iPhone regression suite in run 35134059651 before Pages deployment. Browser emulation is not a physical iPhone measurement.
+
+## LUFT 0.3.2 · laptop framing
+
+At widths of 1000px and above, playback controls sit alongside the shared timeline in a shallow dock. At 1366×700 it measures 131px high, with a 48px scrub target and 44px primary controls. The map reserves less space below it to use the recovered height. Narrow screens retain the stacked layout.
+
+The land outside the recorder manifest's study bounds fades over four degrees into the background. This is part of the cached land image, rebuilt only when the view or size changes, and works with both aircraft renderers. Observed aircraft and density values are not attenuated. The zoom-out limit uses the manifest bounds and preserves the current view's aspect ratio; the Europe button restores the complete study extent.
+
+Validation: production build, 23 unit/data checks and 20 Chromium browser checks pass locally (two optional profiles skipped). Laptop, short laptop and phone screenshots were reviewed; the full deployment suite also runs iPhone WebKit.

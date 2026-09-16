@@ -14,3 +14,23 @@
 
 .colophon{display:grid;grid-template-columns:minmax(0,1fr) auto auto;padding-right:0;gap:16px}.method{position:static}.method-content{right:12px;bottom:calc(100% + 10px)}
 @media(max-width:700px){.colophon{gap:12px}}
+
+.playback-controls{display:flex;align-items:center;gap:8px}
+/* Wide screens use a shallow transport strip; phones keep the stacked touch layout. */
+@media(min-width:1000px){
+ .study{--dock-clearance:160px}
+ .stage canvas{--luft-map-bottom:150px;--luft-map-top:0px}
+ .study>footer{display:grid;grid-template-columns:auto minmax(0,1fr) auto;column-gap:18px;width:min(1060px,calc(100% - 56px));padding:8px 14px 0}
+ .transport{display:contents}
+ .playback-controls{grid-column:1;grid-row:1;align-self:center}
+ .speed-label{font-size:0;gap:0}
+ .settings-toggle{grid-column:3;grid-row:1;align-self:center;margin:0;gap:10px}
+ .stream-status,.transport>button:not(.settings-toggle){grid-column:1/-1;grid-row:2}
+ .transport>button:not(.settings-toggle){justify-self:end}
+ .stream-status{align-self:center;min-height:18px}
+ .study .ms-study-timeline{grid-column:2;grid-row:1;--ms-timeline-height:4px}
+ .study .ms-study-timeline__plot{margin-top:0}
+ .study .ms-study-timeline__footnote{margin-top:0}
+ .colophon{grid-column:1/-1;grid-row:3;min-height:26px}
+ .colophon .text-button,.method summary{min-height:26px}
+}

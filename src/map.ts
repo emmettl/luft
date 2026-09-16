@@ -33,7 +33,8 @@ export class AirMap {
  private resizeDirty=true;private dpr=0;private revision=0
  private projection='';private inputs?:{tracks:AirTrack[];airport?:Airport|readonly Airport[];mode:string;cells:number[][];selected?:string}
  private counts={total:0,inbound:0,outbound:0,visible:0}
- constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[]){
+ constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE){
+  this.view={...studyBounds}
   this.ctx=canvas.getContext('2d')!
   this.defaultLabels=airports.filter(a=>['LHR','CDG','FRA','AMS','MAD','FCO','ZRH','IST'].includes(a.iata))
   this.observer=new ResizeObserver(()=>{this.resizeDirty=true});this.observer.observe(canvas)
@@ -63,9 +64,32 @@ export class AirMap {
   ctx.fillStyle='#11202b';ctx.strokeStyle='#283640';ctx.lineWidth=.6;ctx.beginPath()
   for(const f of this.land.features){const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates as number[][][]]:f.geometry.coordinates as number[][][][];for(const poly of polys)for(const ring of poly){ring.forEach(([lon,lat],i)=>{const [x,y]=this.project(lon,lat);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});ctx.closePath()}}
   ctx.fill('evenodd');ctx.stroke()
+  // Fade only the context outside the recorded area. Cache these masks with
+  // the land so neither aircraft renderer adds compositing work per frame.
+  const [left,top]=this.project(this.studyBounds.west,this.studyBounds.north)
+  const [right,bottom]=this.project(this.studyBounds.east,this.studyBounds.south)
+  const featherX=4*.62*this.scale,featherY=4*this.scale
+  ctx.globalCompositeOperation='destination-in'
+  for(const [x0,y0,x1,y1,fraction] of [
+   [left-featherX,0,right+featherX,0,featherX/(right-left+2*featherX)],
+   [0,top-featherY,0,bottom+featherY,featherY/(bottom-top+2*featherY)],
+  ]){
+   const fade=ctx.createLinearGradient(x0,y0,x1,y1)
+   fade.addColorStop(0,'transparent');fade.addColorStop(fraction,'#fff')
+   fade.addColorStop(1-fraction,'#fff');fade.addColorStop(1,'transparent')
+   ctx.fillStyle=fade;ctx.fillRect(0,0,this.width,this.height)
+  }
+  ctx.globalCompositeOperation='source-over'
  }
  project(lon:number,lat:number){return [this.left+(lon-this.view.west)*.62*this.scale,this.top+(this.view.north-lat)*this.scale]}
- zoom(factor:number){const cx=(this.view.west+this.view.east)/2,cy=(this.view.south+this.view.north)/2,w=Math.min(120,Math.max(2,(this.view.east-this.view.west)*factor)),h=w*(this.view.north-this.view.south)/(this.view.east-this.view.west);this.view={west:cx-w/2,east:cx+w/2,south:cy-h/2,north:cy+h/2}}
+ zoom(factor:number){
+  if(!Number.isFinite(factor)||factor<=0)return
+  const bounds=this.studyBounds,aspect=(this.view.east-this.view.west)/(this.view.north-this.view.south)
+  const w=Math.min(bounds.east-bounds.west,(bounds.north-bounds.south)*aspect,Math.max(2,(this.view.east-this.view.west)*factor)),h=w/aspect
+  const cx=Math.max(bounds.west+w/2,Math.min(bounds.east-w/2,(this.view.west+this.view.east)/2))
+  const cy=Math.max(bounds.south+h/2,Math.min(bounds.north-h/2,(this.view.south+this.view.north)/2))
+  this.view={west:cx-w/2,east:cx+w/2,south:cy-h/2,north:cy+h/2}
+ }
  pan(dx:number,dy:number){const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
  focus(airport:Airport){this.view={west:airport.longitude-8,east:airport.longitude+8,south:airport.latitude-5,north:airport.latitude+5}}
  private outside(track:AirTrack,p:AirPosition){

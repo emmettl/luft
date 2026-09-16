@@ -139,3 +139,20 @@ test('search results resize above the phone keyboard viewport',async({page})=>{
  await expect(page.getByRole('button',{name:'Remove LHR'})).toBeVisible()
  await expect(page.getByRole('listbox')).toHaveCount(0)
 })
+
+test('laptop transport stays shallow with readable controls and a usable scrub target',async({page})=>{
+ await page.setViewportSize({width:1366,height:700});await ready(page)
+ const footer=await page.locator('footer').boundingBox(),slider=await page.getByRole('slider').boundingBox()
+ expect(footer!.height).toBeLessThan(145);expect(slider!.height).toBeGreaterThanOrEqual(44)
+ for(const control of [page.locator('.play'),page.getByRole('combobox',{name:'Playback speed'}),page.getByRole('button',{name:'View settings',exact:true})]){
+  const box=await control.boundingBox();expect(box!.height).toBeGreaterThanOrEqual(44)
+  expect(box!.y).toBeLessThan(slider!.y+slider!.height)
+  expect(box!.y+box!.height).toBeGreaterThan(slider!.y)
+ }
+ await page.getByRole('button',{name:'View settings',exact:true}).click()
+ const panel=await page.locator('.view-settings').boundingBox();expect(panel!.y+panel!.height).toBeLessThan(footer!.y)
+ await page.getByRole('button',{name:'Close view settings'}).click()
+ await page.getByRole('slider').fill('43200');await expect(page.getByRole('slider')).toHaveValue('43200')
+ await page.screenshot({path:`test-results/${test.info().project.name}-laptop.png`,fullPage:true})
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true)
+})

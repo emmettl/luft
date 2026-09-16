@@ -1,8 +1,8 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest'
-import {AirMap,BRITAIN} from './map'
+import {AirMap,BRITAIN,EUROPE} from './map'
 import type {AirTrack} from '@motionstudies/core/domain/air'
 import type {Airport,Land} from './data'
-const context=()=>Object.fromEntries(['setTransform','clearRect','drawImage','beginPath','moveTo','lineTo','closePath','fill','stroke','arc','fillRect','strokeRect','fillText'].map(key=>[key,vi.fn()])) as unknown as CanvasRenderingContext2D
+const context=()=>({...Object.fromEntries(['setTransform','clearRect','drawImage','beginPath','moveTo','lineTo','closePath','fill','stroke','arc','fillRect','strokeRect','fillText'].map(key=>[key,vi.fn()])),createLinearGradient:vi.fn(()=>({addColorStop:vi.fn()}))}) as unknown as CanvasRenderingContext2D
 let ctx:CanvasRenderingContext2D,backdrop:CanvasRenderingContext2D,canvas:HTMLCanvasElement,resize:()=>void
 const disconnect=vi.fn()
 beforeEach(()=>{
@@ -68,4 +68,32 @@ it('feeds retained GPU state the shared positions, gap validity, selection and p
  map.draw(gapped,65,undefined,'density',cells);expect(painter.clear).toHaveBeenCalledTimes(1)
  map.setPainter();expect(painter.dispose).toHaveBeenCalledTimes(1)
  expect(map.draw(gapped,65,undefined,'motion',cells)).toEqual(expected)
+})
+
+it('caps zoom-out at the recorded extent from Europe, Britain and airport views',()=>{
+ const map=new AirMap(canvas,land,[])
+ map.zoom(1.4);expect(map.view).toEqual(EUROPE)
+ for(const view of [BRITAIN,{west:2,south:42,east:18,north:52}]){
+  map.view={...view};const aspect=(view.east-view.west)/(view.north-view.south)
+  map.zoom(100)
+  expect(map.view.west).toBeGreaterThanOrEqual(EUROPE.west)
+  expect(map.view.east).toBeLessThanOrEqual(EUROPE.east)
+  expect(map.view.south).toBeGreaterThanOrEqual(EUROPE.south)
+  expect(map.view.north).toBeLessThanOrEqual(EUROPE.north)
+  expect((map.view.east-map.view.west)/(map.view.north-map.view.south)).toBeCloseTo(aspect)
+ }
+ map.zoom(.01);expect(map.view.east-map.view.west).toBeCloseTo(2)
+ const close={...map.view};map.zoom(NaN);map.zoom(0);expect(map.view).toEqual(close)
+})
+it('fades the land outside the manifest bounds only when rebuilding its cached projection',()=>{
+ const bounds={west:-12,south:47,east:16,north:62},map=new AirMap(canvas,land,[],bounds)
+ expect(map.view).toEqual(bounds)
+ map.draw(tracks,5,undefined,'motion',cells)
+ expect(backdrop.createLinearGradient).toHaveBeenCalledTimes(2)
+ expect(backdrop.globalCompositeOperation).toBe('source-over')
+ map.draw(tracks,6,undefined,'motion',cells)
+ expect(backdrop.createLinearGradient).toHaveBeenCalledTimes(2)
+ map.zoom(.7);map.draw(tracks,6,undefined,'motion',cells)
+ expect(backdrop.createLinearGradient).toHaveBeenCalledTimes(4)
+ map.zoom(100);for(const key of ['west','east','south','north'] as const)expect(map.view[key]).toBeCloseTo(bounds[key])
 })

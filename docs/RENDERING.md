@@ -52,3 +52,26 @@ Events are cached per track array and deduplicated by aircraft, kind, airport an
 Canvas and Three.js share a small decorative 2D overlay. It does not intercept pointer input or invalidate the cached land/GPU background. Overlay painting contributes to total map CPU draw time; it is separate from the aircraft geometry/submission stage measurements. The overlay clears only while hints are present or ending. It adds one viewport-sized canvas at the existing capped pixel ratio.
 
 Validation covers evidence and interpolation gaps, deduplication, pause/expiry/reset behaviour, pixel output and colours in both render paths, retained GPU geometry, reduced motion, filtering, touch input and playback. Local results: 27 unit/data checks and 25 Chromium checks pass; two profiling scenarios remain opt-in.
+
+## Observation fade-in (0.3.8)
+
+Newly visible observed tracks, including returns after gaps longer than 45 study
+seconds, blend their heads and trails in over 0.6 seconds of active playback.
+Smoothstep opacity uses the same playback clock as movement accents, so pause,
+buffering and scrubbing freeze it and playback pace does not shorten it. Gaps
+crossed between two fast frames are detected from cached sample discontinuities.
+The shared sampler still decides position validity; no position is extrapolated
+or painted during an observation gap.
+
+Initial loading, seeking, looping, filter changes and returning from density
+prime the current scene immediately. Chunk replacements and renderer changes
+preserve in-progress fades; panning does not trigger new fades. Reduced-motion
+preference disables both fades and movement accents. Counts and picking retain
+the observed population throughout the transition.
+
+Canvas multiplies the existing aircraft opacity. Three.js carries fade opacity
+in the existing state texture's visibility channel, multiplying the shader's
+filter emphasis. The texture size, upload bytes, retained geometry and draw-call
+structure are unchanged. Unit and browser pixel checks cover pauses, gaps skipped
+at fast playback, chunk continuity, seeking, reduced motion, filter dimming and
+both renderers.

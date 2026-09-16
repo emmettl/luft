@@ -4,6 +4,7 @@ import type { Airport, Land } from './data'
 import type {AircraftPainter} from './aircraft-painter'
 import {trackDirection} from './retained-trails'
 import {ACCENT_SECONDS,MovementAccents} from './movement-accents'
+import {VisibilityFades} from './visibility-fades'
 export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
@@ -12,7 +13,7 @@ export function direction(track:Pick<AirTrack,'origin'|'destination'>,airport?:A
  return trackDirection(track,airport?.icao)
 }
 function after(samples:AirTrack['samples'],time:number) {let lo=0,hi=samples.length;while(lo<hi){const m=(lo+hi)>>>1;if(samples[m][0]<time)lo=m+1;else hi=m}return lo}
-type Aircraft=[AirTrack,AirPosition,ReturnType<typeof direction>]
+type Aircraft=[AirTrack,AirPosition,ReturnType<typeof direction>,number]
 type Extent={west:number;east:number;south:number;north:number}
 export class AirMap {
  view={...EUROPE};width=1;height=1;scale=1;left=0;top=0;bottomClearance=160;topClearance=0;selectedFlight?:string
@@ -36,10 +37,12 @@ export class AirMap {
  private accentTracks:AirTrack[]=[]
  private counts={total:0,inbound:0,outbound:0,visible:0}
  private readonly movements=new MovementAccents()
+ private readonly fades=new VisibilityFades()
  private readonly accentContext?:CanvasRenderingContext2D
  private accentsPainted=false
  private accentsEnabled=true
- setAccentsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;this.resetAccents()}}
+ setMotionEffectsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;this.resetMotionEffects()}}
+ resetMotionEffects(){this.fades.reset();this.resetAccents();this.revision++}
  resetAccents(){this.movements.reset();if(this.accentsPainted)this.accentContext?.clearRect(0,0,this.width,this.height);this.accentsPainted=false}
  constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement){
   this.accentContext=accentCanvas?.getContext('2d')??undefined
@@ -48,7 +51,7 @@ export class AirMap {
   this.defaultLabels=airports.filter(a=>['LHR','CDG','FRA','AMS','MAD','FCO','ZRH','IST'].includes(a.iata))
   this.observer=new ResizeObserver(()=>{this.resizeDirty=true});this.observer.observe(canvas)
  }
- dispose(){this.resetAccents();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
+ dispose(){this.resetMotionEffects();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
  private fit(){
   const dpr=Math.min(2,devicePixelRatio||1)
   if(this.resizeDirty||this.dpr!==dpr){
@@ -136,9 +139,11 @@ export class AirMap {
    this.revision++;this.inputs={tracks,airport,mode,cells,selected:this.selectedFlight,matchingIds}
    this.accentTracks=matchingIds?tracks.filter(track=>matchingIds.has(track.id)):tracks
   }
+  if(previous&&(previous.mode!==mode||previous.matchingIds!==matchingIds))this.fades.reset()
   const frameTime=mode==='density'?0:time
   if(!this.frame.needsUpdate(false,frameTime,this.revision))return this.counts
   const ctx=this.ctx,{width:w,height:h}=this,painter=this.painter
+  if(mode==='motion'&&this.accentsEnabled)this.fades.begin(time)
   const baseKey=`${this.projection}:${codes.join('|')}:${mode}`,repaintBase=!painter||mode==='density'||baseKey!==this.baseKey
   if(repaintBase){ctx.clearRect(0,0,w,h);ctx.drawImage(this.backdrop,0,0,w,h);this.baseKey=baseKey}
   this.points=[]
@@ -153,7 +158,8 @@ export class AirMap {
    const samplingStarted=performance.now()
    for(let i=0;i<tracks.length;i++){
     const track=tracks[i],p=positionForAirTrack(track,time),visible=!!p&&!this.outside(track,p)
-    painter.aircraft(i,p,visible)
+    const fade=this.accentsEnabled?this.fades.opacity(track,time,accentClock,!!p):1
+    painter.aircraft(i,p,visible,fade)
     if(!p||(matchingIds&&!matchingIds.has(track.id)))continue
     const d=trackDirection(track,codes);total++;if(d==='inbound')inbound++;if(d==='outbound')outbound++
     if(visible){const x=this.left+(p.longitude-this.view.west)*.62*this.scale,y=this.top+(this.view.north-p.latitude)*this.scale;if(x>=0&&x<=w&&y>=0&&y<=h)this.points.push({x,y,track})}
@@ -162,15 +168,15 @@ export class AirMap {
   }else{
    const samplingStarted=performance.now()
    const layers:Aircraft[][]=[[],[],[],[]]
-   for(const track of tracks){const p=positionForAirTrack(track,time);if(!p)continue;const dimmed=!!matchingIds&&!matchingIds.has(track.id),d=dimmed?undefined:trackDirection(track,codes);if(!dimmed){total++;if(d==='inbound')inbound++;if(d==='outbound')outbound++}
-    if(!this.outside(track,p))layers[dimmed?0:track.id===this.selectedFlight?3:d?2:1].push([track,p,d])
+   for(const track of tracks){const p=positionForAirTrack(track,time),fade=this.accentsEnabled?this.fades.opacity(track,time,accentClock,!!p):1;if(!p)continue;const dimmed=!!matchingIds&&!matchingIds.has(track.id),d=dimmed?undefined:trackDirection(track,codes);if(!dimmed){total++;if(d==='inbound')inbound++;if(d==='outbound')outbound++}
+    if(!this.outside(track,p))layers[dimmed?0:track.id===this.selectedFlight?3:d?2:1].push([track,p,d,fade])
    }
    sampling=performance.now()-samplingStarted;const geometryStarted=performance.now()
-   for(const layer of layers)for(const [track,p,d] of layer){
+   for(const layer of layers)for(const [track,p,d,fade] of layer){
     const dimmed=!!matchingIds&&!matchingIds.has(track.id),selected=!dimmed&&track.id===this.selectedFlight,colour=selected?'#ffffff':d==='inbound'?'#81d9f1':d==='outbound'?'#efbd72':p.altitudeFeet<10000?'#cfac76':'#86bac7'
     const x=this.left+(p.longitude-this.view.west)*.62*this.scale,y=this.top+(this.view.north-p.latitude)*this.scale
     const opacity=dimmed||(hasAirports&&!d&&!selected)?.14:1,width=selected?2:d?1.4:.65,radius=selected?3.5:d?2.3:1.2
-    ctx.globalAlpha=opacity;ctx.strokeStyle=colour;ctx.lineWidth=width;ctx.beginPath()
+    ctx.globalAlpha=opacity*fade;ctx.strokeStyle=colour;ctx.lineWidth=width;ctx.beginPath()
     const start=after(track.samples,time-180),end=after(track.samples,time)
     for(let i=start;i<end;i++){const sample=track.samples[i],sx=this.left+(sample[1]-this.view.west)*.62*this.scale,sy=this.top+(this.view.north-sample[2])*this.scale
      if(i>start&&sample[0]-track.samples[i-1][0]<=45){ctx.lineTo(sx,sy)}else ctx.moveTo(sx,sy)
@@ -182,6 +188,7 @@ export class AirMap {
    ctx.globalAlpha=1
    geometry=performance.now()-geometryStarted
   }
+  if(mode==='motion'&&this.accentsEnabled)this.fades.end()
   ctx.font='10px ui-monospace, monospace'
   for(const a of repaintBase?(hasAirports?selectedAirports:this.defaultLabels):[]){const [x,y]=this.project(a.longitude,a.latitude);if(x<15||x>w-30||y<15||y>h-10)continue;ctx.strokeStyle=hasAirports?'#efe0bd':'#809096';ctx.lineWidth=.8;ctx.strokeRect(x-3,y-3,6,6);ctx.fillStyle=hasAirports?'#eee0c4':'#91a1a9';ctx.fillText(hasAirports?`${a.iata||a.icao} · ${cityLabel(a)}`:a.iata,x+8,y+3)}
   if(mode==='motion'&&this.accentsEnabled)this.paintAccents(this.accentTracks,time,accentClock)

@@ -57,13 +57,13 @@ function Study({release}:{release:Release}) {
  const [boardOpen,setBoardOpen]=useState(false)
  useEffect(()=>{engine.current.selectedIds=selectedIds;engine.current.airports=selectedAirports;engine.current.cells=summary.cells},[selectedIds,selectedAirports,summary])
  const changeSelection=(value:Selection)=>{
-  map.current?.resetAccents();setSelection(value);setFlight('');if(map.current)map.current.selectedFlight=undefined
+  map.current?.resetMotionEffects();setSelection(value);setFlight('');if(map.current)map.current.selectedFlight=undefined
   if(airport&&!value.airports.includes(airport.icao)){setAirport(undefined);setBoardOpen(false)}
  }
  const updateUi=()=>{const e=engine.current;setUi(p=>p.time===e.time&&p.playing===e.playing&&p.waiting===e.waiting?p:{...p,time:e.time,playing:e.playing,waiting:e.waiting})}
  const togglePlayback=()=>{const e=engine.current;if(!e.chunk||e.mode!=='motion')return;e.playing=!e.playing;updateUi()}
  async function seek(value:number,playback=false) {
-  if(!playback)map.current?.resetAccents()
+  if(!playback)map.current?.resetMotionEffects()
   const e=engine.current,t=playback?value%86400:Math.max(0,Math.min(86399,value)),i=Math.floor(t/600)
   if(e.waiting&&playback)return
   const cached=store.cache.get(i)
@@ -76,7 +76,7 @@ function Study({release}:{release:Release}) {
  useEffect(()=>{
   const e=engine.current;map.current=new AirMap(canvas.current!,land,index.airports,{west:manifest.bounds[0],south:manifest.bounds[1],east:manifest.bounds[2],north:manifest.bounds[3]},accentCanvas.current!);let stopped=false,raf=0,last=performance.now(),lastDraw=0,lastUi=0
   const motionPreference=matchMedia('(prefers-reduced-motion: reduce)')
-  const motionChanged=()=>map.current?.setAccentsEnabled(!motionPreference.matches)
+  const motionChanged=()=>map.current?.setMotionEffectsEnabled(!motionPreference.matches)
   motionChanged();motionPreference.addEventListener('change',motionChanged)
   let previousChunk:Chunk|undefined,previousIds:Set<string>|undefined,previousDimOthers:boolean|undefined,tracks:Chunk['tracks']=[]
   void seek(e.time)

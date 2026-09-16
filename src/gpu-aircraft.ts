@@ -18,6 +18,7 @@ vec4 screen(vec2 p){return vec4(p.x/viewport.x*2.-1.,1.-p.y/viewport.y*2.,0.,1.)
 void style(vec4 head,float direction){
  ink=emphasis>1.5?vec3(1.):direction>.5&&direction<1.5?vec3(129.,217.,241.)/255.:direction>1.5?vec3(239.,189.,114.)/255.:head.w<10000.?vec3(207.,172.,118.)/255.:vec3(134.,186.,199.)/255.;
  alpha=emphasis<-.5||(airportSelected>.5&&emphasis<.5)?.14:1.;
+ alpha*=head.z;
 }
 `
 const lineVertex=vertexBase+`
@@ -28,7 +29,7 @@ void main(){
  vec4 head=state(aircraft.x);style(head,aircraft.y);
  // Canvas starts at the first sample inside the trailing window; it does not
  // interpolate the tail boundary. A sample at studyTime belongs to the head.
- bool visible=head.z>.5&&sampleFrom.z>=studyTime-180.&&sampleFrom.z<studyTime;
+ bool visible=head.z>0.&&sampleFrom.z>=studyTime-180.&&sampleFrom.z<studyTime;
  vec2 from=project(sampleFrom.xy),to=project(positionTo.z<studyTime?positionTo.xy:head.xy);
  vec2 d=to-from,normal=vec2(-d.y,d.x)/max(length(d),.0001);
  float width=emphasis>1.5?2.:emphasis>.5?1.4:.65;
@@ -38,7 +39,7 @@ const pointVertex=vertexBase+`
 uniform float pixelRatio;
 void main(){
  vec4 head=state(position.x);style(head,position.y);
- gl_Position=head.z>.5?screen(project(head.xy)):vec4(2.,2.,0.,1.);
+ gl_Position=head.z>0.?screen(project(head.xy)):vec4(2.,2.,0.,1.);
  gl_PointSize=(emphasis>1.5?3.5:emphasis>.5?2.3:1.2)*2.*pixelRatio;
 }`
 const fragment=`varying vec3 ink;varying float alpha;void main(){gl_FragColor=vec4(ink,alpha);}`
@@ -113,8 +114,8 @@ export class GpuAircraftPainter implements AircraftPainter {
   this.geometryPreparedBytes=this.geometryBytes
  }
  private updateBucketVisibility(){const time=this.uniforms.studyTime.value;for(const bucket of this.trailBuckets)bucket.object.visible=bucket.start<time&&bucket.end>time-180}
- aircraft(index:number,position:AirPosition|undefined,visible:boolean){
-  const i=index*4;this.state[i+2]=position&&visible?1:0
+ aircraft(index:number,position:AirPosition|undefined,visible:boolean,opacity=1){
+  const i=index*4;this.state[i+2]=position&&visible?opacity:0
   if(position&&visible){this.state[i]=position.longitude;this.state[i+1]=position.latitude;this.state[i+3]=position.altitudeFeet}
  }
  end(){this.stateUploadBytes=this.state.byteLength;this.texture.needsUpdate=true;this.renderer.render(this.scene,this.camera)}

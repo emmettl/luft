@@ -57,8 +57,8 @@ it('feeds retained GPU state the shared positions, gap validity, selection and p
  map.setPainter(painter)
  expect(map.draw(gapped,65,undefined,'motion',cells)).toEqual(expected)
  expect(painter.prepare).toHaveBeenCalledWith(gapped,[],undefined,undefined)
- expect(painter.aircraft).toHaveBeenLastCalledWith(0,expect.objectContaining({longitude:1.5,latitude:50}),true)
- map.draw(gapped,30,undefined,'motion',cells);expect(painter.aircraft).toHaveBeenLastCalledWith(0,undefined,false)
+ expect(painter.aircraft).toHaveBeenLastCalledWith(0,expect.objectContaining({longitude:1.5,latitude:50}),true,1)
+ map.draw(gapped,30,undefined,'motion',cells);expect(painter.aircraft).toHaveBeenLastCalledWith(0,undefined,false,0)
  const basePaints=vi.mocked(ctx.clearRect).mock.calls.length
  vi.stubGlobal('devicePixelRatio',2);map.draw(gapped,65,undefined,'motion',cells)
  expect(ctx.clearRect).toHaveBeenCalledTimes(basePaints+1)

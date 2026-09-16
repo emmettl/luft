@@ -30,7 +30,7 @@ test('departure and arrival accents render alike over Canvas and Three.js and su
   const counts=map.draw([],91,undefined,'motion',cells,1.7),afterEnd=ink()
   map.draw([],93,undefined,'motion',cells,2.1);const expired=ink()
   map.resetAccents();map.draw(tracks,9,undefined,'motion',cells,3);map.draw(tracks,11,undefined,'motion',cells,3.1);map.draw(tracks,20,undefined,'motion',cells,3.6)
-  map.setAccentsEnabled(false);const disabled=ink();map.draw(tracks,81,undefined,'motion',cells,4);const disabledAfterEvent=ink()
+  map.setMotionEffectsEnabled(false);const disabled=ink();map.draw(tracks,81,undefined,'motion',cells,4);const disabledAfterEvent=ink()
   map.dispose();host.remove()
   return {departure,paused,gpuImage,retained,cleared,arrival,counts,afterEnd,expired,disabled,disabledAfterEvent,failures}
  })

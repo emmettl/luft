@@ -5,7 +5,7 @@ export type AircraftStats={calls:number;triangles:number;points:number;geometryB
 export interface AircraftPainter {
  begin(width:number,height:number,dpr:number,projection:AircraftProjection,time:number):void
  prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string,matchingIds?:ReadonlySet<string>):void
- aircraft(index:number,position:AirPosition|undefined,visible:boolean):void
+ aircraft(index:number,position:AirPosition|undefined,visible:boolean,opacity?:number):void
  end():void
  clear():void
  dispose():void

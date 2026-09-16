@@ -34,3 +34,7 @@ Validation: production build, 23 unit/data checks and 20 Chromium browser checks
 Search results no longer disappear solely because the input loses focus. A mobile keyboard can blur the input before the result receives its click, removing the target before selection. The search now dismisses for an actual pointer action or focus outside the widget, Escape, or its close button. Touch pointer-down keeps the native behaviour; selection remains on click, so a cancelled scroll gesture does not select an option.
 
 Added browser checks use real touch taps for airlines, airports, routes, pill removal and clearing. They also reproduce blur before activation (fails before this change), cancelled touch gestures, outside taps and keyboard focus leaving the widget. Production build, 23 unit checks and 10 targeted Chromium checks pass locally; deployment runs the same touch checks in iPhone WebKit.
+
+### LUFT 0.3.5 · suggestion stacking
+
+The open search container rises above the playback dock. Previously the phone's default airline suggestions (including SWISS) extended into the dock, whose stacking layer intercepted taps. A touch regression selects SWISS from the untyped list where it overlaps the dock, alongside the keyboard-blur checks from 0.3.4.

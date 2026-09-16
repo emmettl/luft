@@ -46,3 +46,16 @@ test('native touch taps add filters while cancelled gestures and outside taps on
  // Explicit keyboard focus leaving the widget also dismisses the results.
  await page.locator('.play').focus();await expect(page.getByRole('listbox')).toHaveCount(0)
 })
+
+test('untyped airline suggestions receive taps above the phone playback dock',async({page})=>{
+ await page.goto('./');await pauseAtStart(page)
+ await page.getByRole('combobox',{name:'Search flights'}).tap()
+ const swiss=page.getByRole('option',{name:/^SWISS/})
+ await swiss.scrollIntoViewIfNeeded()
+ const option=await swiss.boundingBox(),dock=await page.locator('footer').boundingBox()
+ expect(option!.y+option!.height).toBeGreaterThan(dock!.y)
+ await swiss.tap()
+ await expect(page.locator('.selection-summary')).toContainText('97 aircraft')
+ await expect(page.getByRole('button',{name:'Remove SWISS',exact:true})).toBeVisible()
+ await expect(page.getByRole('listbox')).toHaveCount(0)
+})

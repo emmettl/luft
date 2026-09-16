@@ -34,3 +34,6 @@
  .colophon{grid-column:1/-1;grid-row:3;min-height:26px}
  .colophon .text-button,.method summary{min-height:26px}
 }
+
+/* Keep long suggestion lists above the playback dock on small screens. */
+.workspace aside:has(.search-popover){z-index:7}

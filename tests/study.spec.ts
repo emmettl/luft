@@ -57,7 +57,7 @@ test('search keyboard, empty intersections, removal and many pills keep the cont
  await expect(page.locator('.play')).toBeInViewport()
  await search.fill('zzzzzzzz');await expect(page.locator('.search-empty')).toBeVisible()
  await search.press('Escape');await expect(page.getByRole('listbox')).toHaveCount(0)
- await search.fill('United');await page.getByRole('option',{name:/^United/}).click()
+ await search.fill('United');await page.getByRole('option',{name:/^United Airlines/}).click()
  await expect(page.getByRole('button',{name:'Remove United'})).toBeVisible()
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true)
 })

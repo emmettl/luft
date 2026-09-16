@@ -76,6 +76,10 @@
 .unified-input>svg{flex-shrink:0;color:#b7cbd5}.unified-input input::placeholder{font-size:12px;letter-spacing:.01em}
 .filter-pill{border-color:#a7c4d32b;background:#a4c4d30b;border-radius:6px}
 .filter-pill--airports{border-color:#e5c58f50;background:#e5c58f0c}
+.filter-pill--countries{border-color:#e5c58f50;background:#e5c58f0c;color:#e5cda3}
+.country-summary{color:#d3bf9b}
+.airport-map-label[data-country-highlighted=true]{color:#e5cda3}
+.airport-map-label[data-country-highlighted=true]::before{border-color:#e5cda3;background:#e5cda31a}
 .board-launchers button{border-color:var(--hairline);background:#0c1c28c9}
 .airport-panel,.view-settings,.diagnostics,.method-content{border-color:#9fb6c433;box-shadow:0 16px 48px #0005,inset 0 1px #d9ecf209}
 .airport-panel,.flight-caption,.search-popover,.view-settings,.diagnostics{animation:instrument-reveal 220ms ease-out both}

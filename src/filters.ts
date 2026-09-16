@@ -1,15 +1,16 @@
 import {AIRLINES,airlineForTrack,type AirlineId} from './airlines'
 import type {Index} from './data'
 
-export type Selection={airports:string[];airlines:AirlineId[];routes:string[]}
-export const EMPTY_SELECTION:Selection={airports:[],airlines:[],routes:[]}
+export type Selection={airports:string[];airlines:AirlineId[];routes:string[];countries:string[]}
+export const EMPTY_SELECTION:Selection={airports:[],airlines:[],routes:[],countries:[]}
 type Track=Index['aircraft'][number]
 export type SnapshotIndex={date:string;sourceManifestSha256:string;tracks:[string,number[]][]}
 export const routeKey=(track:Pick<Track,'origin'|'destination'>)=>track.origin?.icao&&track.destination?.icao&&track.origin.icao!==track.destination.icao?[track.origin.icao,track.destination.icao].sort().join('|'):undefined
-export function matchesSelection(track:Track,selection:Selection){
+export function matchesSelection(track:Track,selection:Selection,countryAirports:ReadonlySet<string>=new Set()){
  return (!selection.airlines.length||selection.airlines.includes(airlineForTrack(track)!))&&
   (!selection.airports.length||selection.airports.some(code=>track.origin?.icao===code||track.destination?.icao===code))&&
-  (!selection.routes.length||selection.routes.includes(routeKey(track)??''))
+  (!selection.routes.length||selection.routes.includes(routeKey(track)??''))&&
+  (!selection.countries.length||countryAirports.has(track.origin?.icao??'')||countryAirports.has(track.destination?.icao??''))
 }
 export function selectionActivity(tracks:readonly Track[],snapshots:SnapshotIndex){
  const identities=new Map(tracks.map(track=>[track.id,track.icaoAddress??track.id]))

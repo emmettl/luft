@@ -18,6 +18,23 @@ const land={features:[{geometry:{type:'Polygon',coordinates:[[[0,40],[5,45],[10,
 const track=(id:string,samples:AirTrack['samples']):AirTrack=>({id,callsign:id,start:samples[0][0],end:samples.at(-1)![0],samples})
 const tracks=[track('visible',[[0,0,50,10000,300],[10,1,50,10000,300]])]
 const cells=[[0,50,3]]
+it('caches country borders and repaints fills and all airport markers on a paused selection change',()=>{
+ const airports=[{icao:'TEST',latitude:50,longitude:0,iata:'TST',city:'Test',hasObservedMovements:false}] as Airport[]
+ const map=new AirMap(canvas,land,airports),countries=[{code:'XX',name:'Test',aliases:[],airports:['TEST'],polygons:[[[[-1,49],[1,49],[1,51],[-1,51],[-1,49]]]]}]
+ map.setCountries(countries);map.draw(tracks,5,undefined,'motion',cells)
+ const basePaints=vi.mocked(backdrop.stroke).mock.calls.length
+ map.draw(tracks,6,undefined,'motion',cells);expect(backdrop.stroke).toHaveBeenCalledTimes(basePaints)
+ map.setCountries(countries,['XX']);map.draw(tracks,6,undefined,'motion',cells)
+ expect(backdrop.arc).toHaveBeenCalledWith(expect.any(Number),expect.any(Number),4,0,Math.PI*2)
+ expect(map.airportLabels[0]?.highlighted).toBe(true)
+ map.setCountries(countries,[]);map.draw(tracks,6,undefined,'motion',cells)
+ expect(map.airportLabels).toEqual([])
+ map.setMotionEffectsEnabled(false);map.frameCountries(['XX'])
+ expect(map.view.west).toBeLessThan(-1);expect(map.view.east).toBeGreaterThan(1)
+ map.setCountries([{...countries[0],code:'OUT',polygons:[[[[60,10],[65,10],[65,15],[60,10]]]]}]);map.frameCountries(['OUT'])
+ expect(map.view).toEqual(EUROPE)
+ map.dispose()
+})
 it('animates camera changes while paused, settles, and cancels on gestures or reduced motion',()=>{
  const now=vi.spyOn(performance,'now').mockReturnValue(0),map=new AirMap(canvas,land,[])
  map.draw(tracks,5,undefined,'motion',cells)

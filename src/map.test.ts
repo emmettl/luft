@@ -56,14 +56,14 @@ it('feeds retained GPU state the shared positions, gap validity, selection and p
  const expected=map.draw(gapped,65,undefined,'motion',cells)
  map.setPainter(painter)
  expect(map.draw(gapped,65,undefined,'motion',cells)).toEqual(expected)
- expect(painter.prepare).toHaveBeenCalledWith(gapped,[],undefined)
+ expect(painter.prepare).toHaveBeenCalledWith(gapped,[],undefined,undefined)
  expect(painter.aircraft).toHaveBeenLastCalledWith(0,expect.objectContaining({longitude:1.5,latitude:50}),true)
  map.draw(gapped,30,undefined,'motion',cells);expect(painter.aircraft).toHaveBeenLastCalledWith(0,undefined,false)
  const basePaints=vi.mocked(ctx.clearRect).mock.calls.length
  vi.stubGlobal('devicePixelRatio',2);map.draw(gapped,65,undefined,'motion',cells)
  expect(ctx.clearRect).toHaveBeenCalledTimes(basePaints+1)
  map.selectedFlight='gapped';map.draw(gapped,65,undefined,'motion',cells)
- expect(painter.prepare).toHaveBeenLastCalledWith(gapped,[],'gapped')
+ expect(painter.prepare).toHaveBeenLastCalledWith(gapped,[],'gapped',undefined)
  expect(painter.begin).toHaveBeenLastCalledWith(1000,800,2,expect.objectContaining({xScale:.62*map.scale,yScale:-map.scale}),65)
  map.draw(gapped,65,undefined,'density',cells);expect(painter.clear).toHaveBeenCalledTimes(1)
  map.setPainter();expect(painter.dispose).toHaveBeenCalledTimes(1)
@@ -96,4 +96,27 @@ it('fades the land outside the manifest bounds only when rebuilding its cached p
  map.zoom(.7);map.draw(tracks,6,undefined,'motion',cells)
  expect(backdrop.createLinearGradient).toHaveBeenCalledTimes(4)
  map.zoom(100);for(const key of ['west','east','south','north'] as const)expect(map.view[key]).toBeCloseTo(bounds[key])
+})
+
+it('dims context behind matches while keeping counts and picking scoped to the filter, including paused changes',()=>{
+ const map=new AirMap(canvas,land,[])
+ const other={...track('other',[[0,3,50,10000,300],[10,4,50,10000,300]]),destination:{icao:'TEST'}} as AirTrack
+ const all=[...tracks,other],matching=new Set(['visible']),ink:number[]=[]
+ vi.mocked(ctx.stroke).mockImplementation(()=>ink.push(ctx.globalAlpha))
+ const counts=map.draw(all,5,undefined,'motion',cells,0,matching)
+ expect(ink).toEqual([.14,1])
+ expect(counts).toEqual({total:1,inbound:0,outbound:0,visible:1})
+ expect(map.points.map(p=>p.track.id)).toEqual(['visible'])
+ ink.length=0
+ expect(map.draw(all,5,undefined,'motion',cells,0,new Set()).total).toBe(0)
+ expect(ink).toEqual([.14,.14]);expect(map.points).toEqual([])
+ ink.length=0
+ expect(map.draw(all,5,undefined,'motion',cells).total).toBe(2)
+ expect(ink).toEqual([1,1])
+ const painter={begin:vi.fn(),prepare:vi.fn(),aircraft:vi.fn(),end:vi.fn(),clear:vi.fn(),dispose:vi.fn(),stats:vi.fn()}
+ map.setPainter(painter)
+ expect(map.draw(all,5,undefined,'motion',cells,0,matching)).toEqual(counts)
+ expect(painter.prepare).toHaveBeenCalledWith(all,[],undefined,matching)
+ expect(painter.aircraft).toHaveBeenCalledTimes(2)
+ expect(map.points.map(p=>p.track.id)).toEqual(['visible'])
 })

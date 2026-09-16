@@ -11,10 +11,10 @@ export function trackDirection(track:Pick<AirTrack,'origin'|'destination'>,airpo
  * Shaders apply exact sample boundaries within the remaining blocks. Heads and
  * partial segments use the shared CPU sampler's exact Hermite position.
  */
-export function buildTrailLayers(tracks:AirTrack[],airport?:string|readonly string[],selected?:string):TrailLayer[]{
- const groups=[0,1,2].map(()=>({buckets:new Map<number,{from:number[];to:number[];aircraft:number[]}>(),heads:[] as number[]}))
+export function buildTrailLayers(tracks:AirTrack[],airport?:string|readonly string[],selected?:string,matchingIds?:ReadonlySet<string>):TrailLayer[]{
+ const groups=[0,1,2,3].map(()=>({buckets:new Map<number,{from:number[];to:number[];aircraft:number[]}>(),heads:[] as number[]}))
  tracks.forEach((track,index)=>{
-  const direction=trackDirection(track,airport),layer=track.id===selected?2:direction?1:0,code=direction==='inbound'?1:direction==='outbound'?2:0,g=groups[layer]
+  const dimmed=!!matchingIds&&!matchingIds.has(track.id),direction=dimmed?undefined:trackDirection(track,airport),layer=dimmed?0:track.id===selected?3:direction?2:1,code=direction==='inbound'?1:direction==='outbound'?2:0,g=groups[layer]
   g.heads.push(index,code,0)
   for(let i=1;i<track.samples.length;i++){
    const a=track.samples[i-1],b=track.samples[i]

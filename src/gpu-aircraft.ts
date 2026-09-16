@@ -17,7 +17,7 @@ vec2 project(vec2 p){return p*projection.xy+projection.zw;}
 vec4 screen(vec2 p){return vec4(p.x/viewport.x*2.-1.,1.-p.y/viewport.y*2.,0.,1.);}
 void style(vec4 head,float direction){
  ink=emphasis>1.5?vec3(1.):direction>.5&&direction<1.5?vec3(129.,217.,241.)/255.:direction>1.5?vec3(239.,189.,114.)/255.:head.w<10000.?vec3(207.,172.,118.)/255.:vec3(134.,186.,199.)/255.;
- alpha=airportSelected>.5&&emphasis<.5?.14:1.;
+ alpha=emphasis<-.5||(airportSelected>.5&&emphasis<.5)?.14:1.;
 }
 `
 const lineVertex=vertexBase+`
@@ -54,7 +54,7 @@ export class GpuAircraftPainter implements AircraftPainter {
  private readonly objects:(THREE.Mesh|THREE.Points)[]=[]
  private readonly materials:THREE.ShaderMaterial[]=[]
  private readonly trailBuckets:{object:THREE.Mesh;start:number;end:number}[]=[]
- private tracks?:AirTrack[];private airport?:string;private selected?:string
+ private tracks?:AirTrack[];private airport?:string;private selected?:string;private matchingIds?:ReadonlySet<string>
  private builds=0;private geometryBytes=0;private geometryPreparedBytes=0;private stateUploadBytes=0
  private size='';private disposed=false
  private readonly lost=(event:Event)=>{event.preventDefault();if(!this.disposed)this.onFailure('WebGL context lost; using Canvas.')}
@@ -63,8 +63,8 @@ export class GpuAircraftPainter implements AircraftPainter {
   this.renderer=new THREE.WebGLRenderer({canvas:this.canvas,alpha:true,antialias:true,powerPreference:'default'})
   this.renderer.debug.onShaderError=()=>{queueMicrotask(()=>{if(!this.disposed)this.onFailure('GPU shader unavailable; using Canvas.')})}
   this.renderer.setClearColor(0,0);this.renderer.setPixelRatio(1)
-  for(let layer=0;layer<3;layer++)for(const lines of [true,false]){
-   const material=new THREE.ShaderMaterial({uniforms:{...this.uniforms,emphasis:{value:layer}},transparent:true,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,vertexShader:lines?lineVertex:pointVertex,fragmentShader:lines?fragment:pointFragment})
+  for(let layer=0;layer<4;layer++)for(const lines of [true,false]){
+   const material=new THREE.ShaderMaterial({uniforms:{...this.uniforms,emphasis:{value:layer-1}},transparent:true,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,vertexShader:lines?lineVertex:pointVertex,fragmentShader:lines?fragment:pointFragment})
    this.materials.push(material)
   }
   this.canvas.addEventListener('webglcontextlost',this.lost);parent.append(this.canvas)
@@ -75,17 +75,17 @@ export class GpuAircraftPainter implements AircraftPainter {
   this.uniforms.projection.value.set(projection.xScale,projection.yScale,projection.xOffset,projection.yOffset)
   this.uniforms.studyTime.value=time;this.geometryPreparedBytes=0;this.updateBucketVisibility()
  }
- prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string){
+ prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string,matchingIds?:ReadonlySet<string>){
   const airportKey=typeof airport==='string'?airport:airport?.join('|')
-  if(tracks===this.tracks&&airportKey===this.airport&&selected===this.selected)return
-  this.tracks=tracks;this.airport=airportKey;this.selected=selected;this.builds++
+  if(tracks===this.tracks&&airportKey===this.airport&&selected===this.selected&&matchingIds===this.matchingIds)return
+  this.tracks=tracks;this.airport=airportKey;this.selected=selected;this.matchingIds=matchingIds;this.builds++
   this.uniforms.airportSelected.value=airportKey?1:0
   const width=Math.min(1024,this.renderer.capabilities.maxTextureSize,Math.max(1,tracks.length)),height=Math.max(1,Math.ceil(tracks.length/width))
   if(height>this.renderer.capabilities.maxTextureSize)throw Error('Aircraft texture exceeds device capacity')
   this.texture.dispose();this.state=new Float32Array(width*height*4)
   this.texture=new THREE.DataTexture(this.state,width,height,THREE.RGBAFormat,THREE.FloatType)
   this.uniforms.aircraftState.value=this.texture;this.uniforms.stateSize.value.set(width,height)
-  const layers=buildTrailLayers(tracks,airport,selected);this.geometryBytes=0
+  const layers=buildTrailLayers(tracks,airport,selected,matchingIds);this.geometryBytes=0
   for(const object of this.objects){object.geometry.dispose();this.scene.remove(object)}
   this.objects.length=0;this.trailBuckets.length=0
   const add=(object:THREE.Mesh|THREE.Points,order:number)=>{

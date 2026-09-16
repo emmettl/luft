@@ -32,7 +32,8 @@ export class AirMap {
  private readonly extents=new WeakMap<AirTrack,Extent>()
  private readonly defaultLabels:Airport[]
  private resizeDirty=true;private dpr=0;private revision=0
- private projection='';private inputs?:{tracks:AirTrack[];airport?:Airport|readonly Airport[];mode:string;cells:number[][];selected?:string}
+ private projection='';private inputs?:{tracks:AirTrack[];airport?:Airport|readonly Airport[];mode:string;cells:number[][];selected?:string;matchingIds?:ReadonlySet<string>}
+ private accentTracks:AirTrack[]=[]
  private counts={total:0,inbound:0,outbound:0,visible:0}
  private readonly movements=new MovementAccents()
  private readonly accentContext?:CanvasRenderingContext2D
@@ -127,12 +128,13 @@ export class AirMap {
    this.top+(this.view.north-Math.min(extent.south,p.latitude))*this.scale < -4 ||
    this.top+(this.view.north-Math.max(extent.north,p.latitude))*this.scale > this.height+4
  }
- draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0) {
+ draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0,matchingIds?:ReadonlySet<string>) {
   const started=performance.now();this.fit()
   const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],codes=selectedAirports.map(a=>a.icao),hasAirports=codes.length>0
   const previous=this.inputs
-  if(!previous||previous.tracks!==tracks||previous.airport!==airport||previous.mode!==mode||previous.cells!==cells||previous.selected!==this.selectedFlight){
-   this.revision++;this.inputs={tracks,airport,mode,cells,selected:this.selectedFlight}
+  if(!previous||previous.tracks!==tracks||previous.airport!==airport||previous.mode!==mode||previous.cells!==cells||previous.selected!==this.selectedFlight||previous.matchingIds!==matchingIds){
+   this.revision++;this.inputs={tracks,airport,mode,cells,selected:this.selectedFlight,matchingIds}
+   this.accentTracks=matchingIds?tracks.filter(track=>matchingIds.has(track.id)):tracks
   }
   const frameTime=mode==='density'?0:time
   if(!this.frame.needsUpdate(false,frameTime,this.revision))return this.counts
@@ -147,27 +149,27 @@ export class AirMap {
    let max=1;for(const c of cells)max=Math.max(max,c[2])
    for(const [lon,lat,n] of cells){const [x,y]=this.project(lon,lat+.5),cw=Math.max(1,.5*.62*this.scale),ch=Math.max(1,.5*this.scale);if(x+cw<0||x>w||y+ch<0||y>h)continue;ctx.fillStyle=`rgba(233,188,108,${.04+.83*Math.sqrt(n/max)})`;ctx.fillRect(x,y,cw,ch)}
   }else if(painter){
-   const preparationStarted=performance.now();painter.prepare(tracks,codes,this.selectedFlight);geometry=performance.now()-preparationStarted
+   const preparationStarted=performance.now();painter.prepare(tracks,codes,this.selectedFlight,matchingIds);geometry=performance.now()-preparationStarted
    const samplingStarted=performance.now()
    for(let i=0;i<tracks.length;i++){
     const track=tracks[i],p=positionForAirTrack(track,time),visible=!!p&&!this.outside(track,p)
     painter.aircraft(i,p,visible)
-    if(!p)continue
+    if(!p||(matchingIds&&!matchingIds.has(track.id)))continue
     const d=trackDirection(track,codes);total++;if(d==='inbound')inbound++;if(d==='outbound')outbound++
     if(visible){const x=this.left+(p.longitude-this.view.west)*.62*this.scale,y=this.top+(this.view.north-p.latitude)*this.scale;if(x>=0&&x<=w&&y>=0&&y<=h)this.points.push({x,y,track})}
    }
    sampling=performance.now()-samplingStarted;const submissionStarted=performance.now();painter.end();submission=performance.now()-submissionStarted
   }else{
    const samplingStarted=performance.now()
-   const layers:Aircraft[][]=[[],[],[]]
-   for(const track of tracks){const p=positionForAirTrack(track,time);if(!p)continue;const d=trackDirection(track,codes);total++;if(d==='inbound')inbound++;if(d==='outbound')outbound++
-    if(!this.outside(track,p))layers[track.id===this.selectedFlight?2:d?1:0].push([track,p,d])
+   const layers:Aircraft[][]=[[],[],[],[]]
+   for(const track of tracks){const p=positionForAirTrack(track,time);if(!p)continue;const dimmed=!!matchingIds&&!matchingIds.has(track.id),d=dimmed?undefined:trackDirection(track,codes);if(!dimmed){total++;if(d==='inbound')inbound++;if(d==='outbound')outbound++}
+    if(!this.outside(track,p))layers[dimmed?0:track.id===this.selectedFlight?3:d?2:1].push([track,p,d])
    }
    sampling=performance.now()-samplingStarted;const geometryStarted=performance.now()
    for(const layer of layers)for(const [track,p,d] of layer){
-    const selected=track.id===this.selectedFlight,colour=selected?'#ffffff':d==='inbound'?'#81d9f1':d==='outbound'?'#efbd72':p.altitudeFeet<10000?'#cfac76':'#86bac7'
+    const dimmed=!!matchingIds&&!matchingIds.has(track.id),selected=!dimmed&&track.id===this.selectedFlight,colour=selected?'#ffffff':d==='inbound'?'#81d9f1':d==='outbound'?'#efbd72':p.altitudeFeet<10000?'#cfac76':'#86bac7'
     const x=this.left+(p.longitude-this.view.west)*.62*this.scale,y=this.top+(this.view.north-p.latitude)*this.scale
-    const opacity=hasAirports&&!d&&!selected?.14:1,width=selected?2:d?1.4:.65,radius=selected?3.5:d?2.3:1.2
+    const opacity=dimmed||(hasAirports&&!d&&!selected)?.14:1,width=selected?2:d?1.4:.65,radius=selected?3.5:d?2.3:1.2
     ctx.globalAlpha=opacity;ctx.strokeStyle=colour;ctx.lineWidth=width;ctx.beginPath()
     const start=after(track.samples,time-180),end=after(track.samples,time)
     for(let i=start;i<end;i++){const sample=track.samples[i],sx=this.left+(sample[1]-this.view.west)*.62*this.scale,sy=this.top+(this.view.north-sample[2])*this.scale
@@ -175,14 +177,14 @@ export class AirMap {
     }
     if(end>start&&time-track.samples[end-1][0]<=45){ctx.lineTo(x,y)}
     ctx.stroke();ctx.fillStyle=colour;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
-    if(x>=0&&x<=w&&y>=0&&y<=h)this.points.push({x,y,track})
+    if(!dimmed&&x>=0&&x<=w&&y>=0&&y<=h)this.points.push({x,y,track})
    }
    ctx.globalAlpha=1
    geometry=performance.now()-geometryStarted
   }
   ctx.font='10px ui-monospace, monospace'
   for(const a of repaintBase?(hasAirports?selectedAirports:this.defaultLabels):[]){const [x,y]=this.project(a.longitude,a.latitude);if(x<15||x>w-30||y<15||y>h-10)continue;ctx.strokeStyle=hasAirports?'#efe0bd':'#809096';ctx.lineWidth=.8;ctx.strokeRect(x-3,y-3,6,6);ctx.fillStyle=hasAirports?'#eee0c4':'#91a1a9';ctx.fillText(hasAirports?`${a.iata||a.icao} · ${cityLabel(a)}`:a.iata,x+8,y+3)}
-  if(mode==='motion'&&this.accentsEnabled)this.paintAccents(tracks,time,accentClock)
+  if(mode==='motion'&&this.accentsEnabled)this.paintAccents(this.accentTracks,time,accentClock)
   else this.resetAccents()
   this.renderedFrames++;this.durations.push(performance.now()-started);if(this.durations.length>300)this.durations.shift()
   this.stages.push({setup,sampling,geometry,submission});if(this.stages.length>300)this.stages.shift()

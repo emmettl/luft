@@ -7,6 +7,7 @@ import {ACCENT_SECONDS,MovementAccents} from './movement-accents'
 import {VisibilityFades} from './visibility-fades'
 import {layoutAirportLabels,type AirportLabel} from './airport-labels'
 import type {MapLabelBox} from '@motionstudies/core/map-labels'
+import {DaylightLayer} from './daylight'
 export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
@@ -52,16 +53,31 @@ export class AirMap {
  private readonly accentContext?:CanvasRenderingContext2D
  private accentsPainted=false
  private accentsEnabled=true
- setMotionEffectsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;this.resetMotionEffects()}}
+ private daylight?:DaylightLayer
+ private daylightEnabled=true
+ private camera?:{from:View;to:View;started:number}
+ setDaylightEnabled(enabled:boolean){if(this.daylightEnabled!==enabled){this.daylightEnabled=enabled;this.baseKey='';this.revision++}}
+ setMotionEffectsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;if(!enabled&&this.camera){this.view=this.camera.to;this.camera=undefined}this.resetMotionEffects()}}
+ transitionTo(to:View){
+  if(!this.accentsEnabled){this.view={...to};this.camera=undefined;return}
+  this.camera={from:{...this.view},to:{...to},started:performance.now()}
+ }
+ private advanceCamera(now:number){
+  if(!this.camera)return
+  const {from,to,started}=this.camera,t=Math.min(1,(now-started)/700),ease=t*t*(3-2*t)
+  for(const key of ['west','south','east','north'] as const)this.view[key]=from[key]+(to[key]-from[key])*ease
+  if(t===1)this.camera=undefined
+ }
  resetMotionEffects(){this.fades.reset();this.resetAccents();this.revision++}
  resetAccents(){this.movements.reset();if(this.accentsPainted)this.accentContext?.clearRect(0,0,this.width,this.height);this.accentsPainted=false}
- constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement,private readonly labelOptions?:{ranks:ReadonlyMap<string,number>;onChange:(labels:AirportLabel[])=>void}){
+ constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement,date?:string,private readonly labelOptions?:{ranks:ReadonlyMap<string,number>;onChange:(labels:AirportLabel[])=>void}){
+  if(date)this.daylight=new DaylightLayer(date)
   this.accentContext=accentCanvas?.getContext('2d')??undefined
   this.view={...studyBounds}
   this.ctx=canvas.getContext('2d')!
   this.observer=new ResizeObserver(()=>{this.resizeDirty=true});this.observer.observe(canvas)
  }
- dispose(){this.resetMotionEffects();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
+ dispose(){this.resetMotionEffects();this.daylight?.dispose();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
  private fit(){
   const dpr=Math.min(2,devicePixelRatio||1)
   if(this.resizeDirty||this.dpr!==dpr){
@@ -107,14 +123,21 @@ export class AirMap {
  project(lon:number,lat:number){return [this.left+(lon-this.view.west)*.62*this.scale,this.top+(this.view.north-lat)*this.scale]}
  zoom(factor:number){
   if(!Number.isFinite(factor)||factor<=0)return
+  this.camera=undefined
   const bounds=this.studyBounds,aspect=(this.view.east-this.view.west)/(this.view.north-this.view.south)
   const w=Math.min(bounds.east-bounds.west,(bounds.north-bounds.south)*aspect,Math.max(2,(this.view.east-this.view.west)*factor)),h=w/aspect
   const cx=Math.max(bounds.west+w/2,Math.min(bounds.east-w/2,(this.view.west+this.view.east)/2))
   const cy=Math.max(bounds.south+h/2,Math.min(bounds.north-h/2,(this.view.south+this.view.north)/2))
   this.view={west:cx-w/2,east:cx+w/2,south:cy-h/2,north:cy+h/2}
  }
- pan(dx:number,dy:number){const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
- focus(airport:Airport){this.view={west:airport.longitude-8,east:airport.longitude+8,south:airport.latitude-5,north:airport.latitude+5}}
+ pan(dx:number,dy:number){this.camera=undefined;const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
+ focus(airport:Airport){this.transitionTo({west:airport.longitude-8,east:airport.longitude+8,south:airport.latitude-5,north:airport.latitude+5})}
+ frameAirports(airports:readonly Airport[]){
+  if(!airports.length){this.transitionTo(this.studyBounds);return}
+  const west=Math.min(...airports.map(a=>a.longitude))-8,east=Math.max(...airports.map(a=>a.longitude))+8
+  const south=Math.min(...airports.map(a=>a.latitude))-5,north=Math.max(...airports.map(a=>a.latitude))+5
+  this.transitionTo({west:Math.max(this.studyBounds.west,west),east:Math.min(this.studyBounds.east,east),south:Math.max(this.studyBounds.south,south),north:Math.min(this.studyBounds.north,north)})
+ }
  private paintAccents(tracks:AirTrack[],time:number,clock:number){
   const ctx=this.accentContext;if(!ctx)return
   const accents=this.movements.advance(tracks,time,clock)
@@ -142,7 +165,7 @@ export class AirMap {
    this.top+(this.view.north-Math.max(extent.north,p.latitude))*this.scale > this.height+4
  }
  draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0,matchingIds?:ReadonlySet<string>) {
-  const started=performance.now();this.fit()
+  const started=performance.now();this.advanceCamera(started);this.fit()
   const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],codes=selectedAirports.map(a=>a.icao),hasAirports=codes.length>0
   this.updateAirportLabels(codes)
   const previous=this.inputs
@@ -155,8 +178,9 @@ export class AirMap {
   if(!this.frame.needsUpdate(false,frameTime,this.revision))return this.counts
   const ctx=this.ctx,{width:w,height:h}=this,painter=this.painter
   if(mode==='motion'&&this.accentsEnabled)this.fades.begin(time)
-  const baseKey=`${this.projection}:${codes.join('|')}:${mode}`,repaintBase=!painter||mode==='density'||baseKey!==this.baseKey
-  if(repaintBase){ctx.clearRect(0,0,w,h);ctx.drawImage(this.backdrop,0,0,w,h);this.baseKey=baseKey}
+  const daylightTime=mode==='density'?Math.floor(time/3600)*3600+1800:time
+  const baseKey=`${this.projection}:${codes.join('|')}:${mode}:${this.daylightEnabled?Math.floor(daylightTime/60):'off'}`,repaintBase=!painter||mode==='density'||baseKey!==this.baseKey
+  if(repaintBase){ctx.clearRect(0,0,w,h);ctx.drawImage(this.backdrop,0,0,w,h);if(this.daylightEnabled)this.daylight?.draw(ctx,w,h,{west:this.view.west,north:this.view.north,left:this.left,top:this.top,scale:this.scale},daylightTime);this.baseKey=baseKey}
   this.points=[]
   if(painter){if(mode==='density')painter.clear();else painter.begin(w,h,this.dpr,{xScale:.62*this.scale,yScale:-this.scale,xOffset:this.left-this.view.west*.62*this.scale,yOffset:this.top+this.view.north*this.scale},time)}
   const setup=performance.now()-started;let sampling=0,geometry=0,submission=0
@@ -189,11 +213,18 @@ export class AirMap {
     const opacity=dimmed||(hasAirports&&!d&&!selected)?.14:1,width=selected?2:d?1.4:.65,radius=selected?3.5:d?2.3:1.2
     ctx.globalAlpha=opacity*fade;ctx.strokeStyle=colour;ctx.lineWidth=width;ctx.beginPath()
     const start=after(track.samples,time-180),end=after(track.samples,time)
+    if(end>start){
+     const tail=track.samples[start],tx=this.left+(tail[1]-this.view.west)*.62*this.scale,ty=this.top+(this.view.north-tail[2])*this.scale
+     if(Math.hypot(x-tx,y-ty)>1){const trail=ctx.createLinearGradient(tx,ty,x,y);trail.addColorStop(0,`${colour}12`);trail.addColorStop(.45,`${colour}70`);trail.addColorStop(1,`${colour}e0`);ctx.strokeStyle=trail}
+    }
     for(let i=start;i<end;i++){const sample=track.samples[i],sx=this.left+(sample[1]-this.view.west)*.62*this.scale,sy=this.top+(this.view.north-sample[2])*this.scale
      if(i>start&&sample[0]-track.samples[i-1][0]<=45){ctx.lineTo(sx,sy)}else ctx.moveTo(sx,sy)
     }
     if(end>start&&time-track.samples[end-1][0]<=45){ctx.lineTo(x,y)}
-    ctx.stroke();ctx.fillStyle=colour;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
+    ctx.stroke();ctx.fillStyle=colour
+    if(selected){for(const [size,alpha] of [[11,.05],[7,.12]] as const){ctx.globalAlpha=opacity*fade*alpha;ctx.beginPath();ctx.arc(x,y,size,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=opacity*fade}
+    ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
+    ctx.fillStyle='#f0faff';ctx.globalAlpha=opacity*fade*.6;ctx.beginPath();ctx.arc(x,y,radius*.45,0,Math.PI*2);ctx.fill()
     if(!dimmed&&x>=0&&x<=w&&y>=0&&y<=h)this.points.push({x,y,track})
    }
    ctx.globalAlpha=1

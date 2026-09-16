@@ -18,6 +18,24 @@ const land={features:[{geometry:{type:'Polygon',coordinates:[[[0,40],[5,45],[10,
 const track=(id:string,samples:AirTrack['samples']):AirTrack=>({id,callsign:id,start:samples[0][0],end:samples.at(-1)![0],samples})
 const tracks=[track('visible',[[0,0,50,10000,300],[10,1,50,10000,300]])]
 const cells=[[0,50,3]]
+it('animates camera changes while paused, settles, and cancels on gestures or reduced motion',()=>{
+ const now=vi.spyOn(performance,'now').mockReturnValue(0),map=new AirMap(canvas,land,[])
+ map.draw(tracks,5,undefined,'motion',cells)
+ map.transitionTo(BRITAIN)
+ now.mockReturnValue(350);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.view.west).toBeCloseTo((EUROPE.west+BRITAIN.west)/2)
+ now.mockReturnValue(700);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.view).toEqual(BRITAIN)
+ const frames=map.renderedFrames
+ now.mockReturnValue(900);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.renderedFrames).toBe(frames)
+ map.transitionTo(EUROPE);map.pan(10,0);const manual={...map.view}
+ now.mockReturnValue(2000);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.view).toEqual(manual)
+ map.setMotionEffectsEnabled(false);map.transitionTo(EUROPE)
+ expect(map.view).toEqual(EUROPE)
+ now.mockRestore();map.dispose()
+})
 it('retains paused frames, caches land and redraws changed time, data, view, size and selection',()=>{
  const map=new AirMap(canvas,land,[])
  const first=map.draw(tracks,5,undefined,'motion',cells)

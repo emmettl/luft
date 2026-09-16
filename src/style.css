@@ -55,3 +55,61 @@
 .airport-map-label>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
 .airport-map-label[aria-pressed=true]{color:#efce99}
 .airport-map-label:hover,.airport-map-label:focus-visible{background:#172a37e8;color:#fff0d5}
+/* Aviation instrument: warm metal, luminous ink and quiet, precise controls. */
+.study{--champagne:#e5c58f;--hairline:#9fb6c426}
+.stage{background:radial-gradient(ellipse at 48% 40%,#132737 0%,#0b1723 48%,#070e17 100%)}
+.identity h1{font-size:36px;font-weight:350;letter-spacing:.22em;color:#f1f4f2}
+.identity h1 span{font-size:11px;letter-spacing:.035em;font-weight:400;color:#a3b6c0;margin-left:15px}
+.eyebrow{font-size:8px;letter-spacing:.19em;color:var(--champagne)}
+.date{font-size:10px;letter-spacing:.025em}.date span{color:#8c9ea8;letter-spacing:.07em}
+.clock-label{font:8px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.19em;color:#90a6b3;margin-bottom:7px}
+.clock{font-size:42px;font-weight:300;line-height:1.1;letter-spacing:-.055em;font-variant-numeric:tabular-nums;color:#f0f5f5;text-shadow:0 0 30px #a1dcec12}
+.clock small{margin-left:5px;letter-spacing:.09em;color:#d0b68c}
+.count{margin-top:9px;color:#a9bfca}
+.view-controls{top:242px;gap:0;max-width:none;border:1px solid var(--hairline);border-radius:8px;background:#0a1722db;box-shadow:0 4px 18px #0002;overflow:hidden}
+.view-controls button{border:0;border-radius:0;background:none;padding:10px 13px;color:#b9cbd4}
+.view-controls button+button{border-left:1px solid var(--hairline)}
+.view-controls button:hover{background:#b5d6e412;color:#fff}
+.view-controls button[aria-label^="Zoom"]{font-size:16px;font-weight:300}
+.flight-search{border-color:#91b5c433;background:linear-gradient(135deg,#112331f5,#0a1723f5);border-radius:10px;box-shadow:0 6px 24px #0002,inset 0 1px #c0dfef08;transition:border-color 180ms,box-shadow 180ms}
+.flight-search:focus-within{border-color:#d4b67d80;box-shadow:0 0 0 3px #d4b67d08,0 10px 32px #0003}
+.unified-input>svg{flex-shrink:0;color:#b7cbd5}.unified-input input::placeholder{font-size:12px;letter-spacing:.01em}
+.filter-pill{border-color:#a7c4d32b;background:#a4c4d30b;border-radius:6px}
+.filter-pill--airports{border-color:#e5c58f50;background:#e5c58f0c}
+.board-launchers button{border-color:var(--hairline);background:#0c1c28c9}
+.airport-panel,.view-settings,.diagnostics,.method-content{border-color:#9fb6c433;box-shadow:0 16px 48px #0005,inset 0 1px #d9ecf209}
+.airport-panel,.flight-caption,.search-popover,.view-settings,.diagnostics{animation:instrument-reveal 220ms ease-out both}
+.filter-pill{animation:instrument-reveal 180ms ease-out both}
+@keyframes instrument-reveal{from{opacity:0;translate:0 5px}to{opacity:1;translate:0 0}}
+.flight-caption{border-color:#d6be8c50;border-left:2px solid var(--champagne);box-shadow:0 8px 28px #0003;background:#0c1a27f5}
+.flight-caption strong{font-size:14px;font-weight:500;letter-spacing:.09em;color:#f0debc}
+.map-note{display:flex;align-items:center;gap:18px;color:#8da7b5}
+.daylight-key{display:inline-flex;align-items:center;gap:7px;color:#c7b897}
+.daylight-key i{display:inline-block;width:10px;height:10px;border:1px solid #dbc49480;border-radius:50%;background:linear-gradient(90deg,#d2bc8d 50%,transparent 50%);rotate:-25deg}
+.study>footer{background:linear-gradient(115deg,#11202aee,#09141ff5 65%);border-color:#b9d0dc29;border-top-color:#b9d0dc3d;border-radius:12px;box-shadow:0 16px 50px #0005,inset 0 1px #fff04}
+.play{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#ebd3a9,#cbb07e);border-color:#efd8ad;font-weight:500;color:#17222c;box-shadow:0 2px 12px #dec28f12}
+.play:hover{background:#eed8b1}.playback-controls select,.settings-toggle{border-color:var(--hairline);background:#a4c4d307}
+.playback-controls select{appearance:none;-webkit-appearance:none;min-height:44px;padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,#b9cbd4 50%),linear-gradient(135deg,#b9cbd4 50%,transparent 50%);background-position:calc(100% - 14px) 50%,calc(100% - 10px) 50%;background-size:4px 4px;background-repeat:no-repeat}
+.study .ms-study-timeline{--ms-timeline-chart:#85b4c5;--ms-timeline-accent:var(--champagne);--ms-timeline-muted:#7b929f}
+.study .ms-study-timeline__heading{font-size:9px;letter-spacing:.025em}
+.study .ms-study-timeline__reading{color:#ecd3a8}
+.study .ms-study-timeline__graph{border-bottom-color:#9fb6c426}
+.study .ms-study-timeline rect{opacity:.85;transform:scaleX(1.2);transform-box:fill-box;transform-origin:center}
+.study .ms-study-timeline__graph svg{mask-image:linear-gradient(to top,#0005,#000)}
+.study .ms-study-timeline__cursor{box-shadow:0 0 9px #e5c58f40}
+.study .ms-study-timeline__cursor::before{content:"";position:absolute;top:-3px;left:-2px;width:5px;height:5px;background:var(--champagne);transform:rotate(45deg)}
+.study .ms-timeline-scrubber__rail{height:2px;bottom:21px;background:#617d8c50;box-shadow:none}
+.study .ms-timeline-scrubber__fill{background:#dec39180}
+.study .ms-timeline-scrubber__thumb{width:7px;height:7px;border-width:1px;box-shadow:0 0 0 3px #e5c58f12,0 0 12px #e5c58f30}
+.colophon{border-top:1px solid #9fb6c412;margin-top:5px}
+.view-settings #daylight-note{margin:0 0 12px;font-size:10px}
+button{transition:background 160ms,border-color 160ms,color 160ms}
+@media(min-width:1000px){.study .ms-study-timeline{--ms-timeline-height:8px}.study>footer{padding-top:9px}.map-caption{top:116px}}
+@media(max-width:999px){.clock{font-size:36px}}
+@media(max-width:700px){
+ .identity h1{font-size:26px;letter-spacing:.19em}.eyebrow{font-size:7px;letter-spacing:.12em}.date{font-size:9px}
+ .clock-label{display:none}.clock{font-size:30px}.count{margin-top:5px}
+ .view-controls{top:auto;max-width:calc(100% - 28px)}.view-controls button{padding:7px 10px}
+ .map-note{display:none}.study>footer{border-radius:10px}.colophon{margin-top:3px}
+}
+@media(max-height:620px){.identity h1{font-size:24px}.clock-label{display:none}.clock{font-size:25px}.colophon{margin-top:2px}}

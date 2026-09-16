@@ -10,6 +10,10 @@ The map, five-minute activity chart, hourly snapshot density and airport boards 
 
 On phones, a compact search and pills replace separate selectors. Airport boards open separately and scroll above the playback dock. **View** contains Motion / Hour density, Bars / Line and the renderer choice. All primary playback and map controls have 44px touch targets; the shared alpha.23 timeline keeps its native keyboard and touch scrubbing.
 
+Aircraft have luminous heads and fading three-minute trails; selecting a flight adds a restrained halo. Airport selections gently frame the selected places, while Europe and Britain ease back to their regional views. Dragging or zooming interrupts the camera transition. Reduced-motion preferences remove these transitions and panel entrances.
+
+**View → Day / night shading** adds a subtle night boundary beneath the aircraft, calculated from the recorded date and UTC clock using [NOAA's approximate solar equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF). It is astronomical context, not weather or observed light. Hour density uses the middle of its selected hour. The small shading raster is cached by projection and recorded minute; paused frames remain retained. The clock, grouped map controls and fine champagne timeline playhead share the same instrument-inspired styling.
+
 ## Compare renderers
 
 Open **View → Aircraft renderer** to switch between Canvas and the optional Three.js aircraft layer. The clock, view and selections stay in place. [Open Three.js](https://emmettl.github.io/luft/?renderer=three) or [Canvas](https://emmettl.github.io/luft/?renderer=canvas). **Device details** provides resettable timings and **Copy results** for real-device comparisons. See [the comparison guide](docs/COMPARISON.md).

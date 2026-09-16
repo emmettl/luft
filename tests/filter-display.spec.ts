@@ -1,19 +1,23 @@
 import {test,expect} from '@playwright/test'
 import {pauseAtStart} from './playback-helpers'
 
-test('dim toggle restores background traffic without changing the selected counts or timeline',async({page})=>{
+test('flights are dimmed by default and can be hidden without changing the selected counts or timeline',async({page})=>{
  await page.goto('./');await pauseAtStart(page)
  const search=page.getByRole('combobox',{name:'Search flights'})
  await search.fill('SWISS');await page.getByRole('option',{name:/^SWISS/}).click()
  await expect(page.locator('.count')).toHaveText('27 aircraft · SWISS')
  const count=await page.locator('.count').innerText(),timeline=await page.locator('.ms-study-timeline__heading').innerText()
  const pixels=()=>page.locator('canvas').first().evaluate(canvas=>(canvas as HTMLCanvasElement).toDataURL())
- const hidden=await pixels()
+ const dimmed=await pixels()
+ await expect(page.locator('.selection-summary')).toContainText('other flights dimmed')
  await page.getByRole('button',{name:'View settings',exact:true}).click()
  const toggle=page.getByRole('checkbox',{name:'Dim other flights'})
- await expect(toggle).not.toBeChecked();await toggle.check()
+ await expect(toggle).toBeChecked();await toggle.uncheck()
+ await expect.poll(pixels).not.toBe(dimmed)
+ const hidden=await pixels()
+ await toggle.check()
  await expect(page.locator('.selection-summary')).toContainText('other flights dimmed')
- await expect.poll(pixels).not.toBe(hidden)
+ await expect.poll(pixels).toBe(dimmed)
  await expect(page.locator('.count')).toHaveText(count)
  await expect(page.locator('.ms-study-timeline__heading')).toHaveText(timeline,{useInnerText:true})
  await page.screenshot({path:`test-results/${test.info().project.name}-dim-flights.png`,fullPage:true})

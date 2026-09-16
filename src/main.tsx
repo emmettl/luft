@@ -25,10 +25,10 @@ function App(){
 function Study({release}:{release:Release}) {
  const {manifest,index,land,snapshots}=release,canvas=useRef<HTMLCanvasElement>(null),accentCanvas=useRef<HTMLCanvasElement>(null),map=useRef<AirMap|null>(null)
  const store=useMemo(()=>new ChunkStore(manifest.chunks),[manifest])
- const engine=useRef({time:7*3600,accentClock:0,playing:true,scrubbing:false,speed:300,chunk:undefined as Chunk|undefined,chunkIndex:-1,targetTime:7*3600,generation:0,waiting:false,airports:[] as Airport[],mode:'motion',dimOthers:false,flight:'',selectedIds:undefined as Set<string>|undefined,cells:index.cells})
+ const engine=useRef({time:7*3600,accentClock:0,playing:true,scrubbing:false,speed:300,chunk:undefined as Chunk|undefined,chunkIndex:-1,targetTime:7*3600,generation:0,waiting:false,airports:[] as Airport[],mode:'motion',dimOthers:true,flight:'',selectedIds:undefined as Set<string>|undefined,cells:index.cells})
  const [ui,setUi]=useState({time:7*3600,playing:true,waiting:true,total:0,inbound:0,outbound:0,visible:0,cache:0,ms:0,responseBytes:0})
  const [status,setStatus]=useState('Loading observations…'),[speed,setSpeed]=useState(300),[mode,setMode]=useState('motion'),[airport,setAirport]=useState<Airport>(),[flight,setFlight]=useState(''),[diagnostics,setDiagnostics]=useState(false)
- const [selection,setSelection]=useState<Selection>(EMPTY_SELECTION),[settings,setSettings]=useState(false),[dimOthers,setDimOthers]=useState(false)
+ const [selection,setSelection]=useState<Selection>(EMPTY_SELECTION),[settings,setSettings]=useState(false),[dimOthers,setDimOthers]=useState(true)
  const [renderer,setRenderer]=useState<'canvas'|'three'>('canvas'),[rendererLoading,setRendererLoading]=useState(false),[rendererNote,setRendererNote]=useState(''),[copyNote,setCopyNote]=useState('')
  const rendererGeneration=useRef(0),metrics=useRef({intervals:[] as number[],lastPaint:0,bufferSeconds:0})
  const resetMeasurements=()=>{map.current?.resetMeasurements();metrics.current={intervals:[],lastPaint:0,bufferSeconds:0};setUi(p=>({...p,ms:0}));setCopyNote('')}

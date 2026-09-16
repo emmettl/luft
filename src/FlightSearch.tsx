@@ -1,4 +1,4 @@
-import React,{useMemo,useRef,useState} from 'react'
+import React,{useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {searchAirports} from '@motionstudies/core/domain/airport'
 import {AIRLINES} from './airlines'
 import type {Airport} from './data'
@@ -10,6 +10,14 @@ type Props={airports:Airport[];routes:ReturnType<typeof observedRoutes>;selectio
 export function FlightSearch({airports,routes,selection,onChange,onAirportBoard}:Props){
  const [query,setQuery]=useState(''),[open,setOpen]=useState(false),[active,setActive]=useState(0)
  const input=useRef<HTMLInputElement>(null)
+ const popover=useRef<HTMLDivElement>(null)
+ useLayoutEffect(()=>{
+  if(!open)return
+  const viewport=window.visualViewport
+  const fit=()=>{const panel=popover.current;if(!panel)return;const bottom=viewport?viewport.offsetTop+viewport.height:innerHeight;panel.style.maxHeight=`${Math.max(80,Math.min(480,bottom-panel.getBoundingClientRect().top-12))}px`}
+  fit();viewport?.addEventListener('resize',fit);viewport?.addEventListener('scroll',fit);window.addEventListener('resize',fit)
+  return()=>{viewport?.removeEventListener('resize',fit);viewport?.removeEventListener('scroll',fit);window.removeEventListener('resize',fit)}
+ },[open])
  const results=useMemo(()=>{
   const q=query.trim().toLowerCase(),tokens=q.split(/[\s↔/–—-]+/).filter(Boolean)
   const airportResults=(q?searchAirports(airports,q,8):['LHR','CDG','ZRH','AMS'].map(code=>airports.find(a=>a.iata===code)).filter(Boolean)) as Airport[]
@@ -40,6 +48,6 @@ export function FlightSearch({airports,routes,selection,onChange,onAirportBoard}
    {pill.type==='airports'?<button className="pill-label" title={`Open ${pill.detail} board`} onClick={()=>onAirportBoard(airports.find(a=>a.icao===pill.id)!)}>{pill.label}</button>:<span title={pill.detail}>{pill.label}</span>}
    <button className="pill-remove" aria-label={`Remove ${pill.label}`} onClick={()=>remove(pill.type,pill.id)}>×</button>
   </div>)}<button className="clear-filters" onClick={()=>onChange({airports:[],airlines:[],routes:[]})}>Clear all</button></div>}
-  {open&&<div className="search-popover"><p className="search-guidance">Add several in each group. Combine groups to narrow the view.</p><div id="flight-results" role="listbox" aria-label="Flight filters">{results.map((result,i)=><React.Fragment key={`${result.type}:${result.id}`}>{(i===0||results[i-1].type!==result.type)&&<div className="result-heading" role="presentation">{names[result.type]}</div>}<button type="button" id={`flight-result-${i}`} role="option" aria-selected={active===i} onPointerDown={event=>event.preventDefault()} onClick={()=>add(result)}><strong>{result.label}</strong><span>{result.detail}</span><span aria-hidden="true">+</span></button></React.Fragment>)}{!results.length&&<p className="search-empty">No matches. Try an airport code, airline name or two airport codes.</p>}</div></div>}
+  {open&&<div ref={popover} className="search-popover"><p className="search-guidance">Add several in each group. Combine groups to narrow the view.</p><div id="flight-results" role="listbox" aria-label="Flight filters">{results.map((result,i)=><React.Fragment key={`${result.type}:${result.id}`}>{(i===0||results[i-1].type!==result.type)&&<div className="result-heading" role="presentation">{names[result.type]}</div>}<button type="button" id={`flight-result-${i}`} role="option" aria-selected={active===i} onPointerDown={event=>event.preventDefault()} onClick={()=>add(result)}><strong>{result.label}</strong><span>{result.detail}</span><span aria-hidden="true">+</span></button></React.Fragment>)}{!results.length&&<p className="search-empty">No matches. Try an airport code, airline name or two airport codes.</p>}</div></div>}
  </div>
 }

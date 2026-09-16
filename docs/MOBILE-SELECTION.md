@@ -17,6 +17,6 @@ Hour density uses these five-minute observations in half-degree cells. This chan
 ## Validation
 
 - Typecheck, production build and 21 unit/data tests pass locally.
-- 16 Chromium browser checks pass, including combined selections, unknown/empty intersections, route search, clear/remove, short phone layouts, 44px primary touch targets, keyboard behaviour, fast playback, looping, GPU fallback and disk-cache reuse. Two profiling checks remain opt-in.
+- 17 Chromium browser checks pass, including combined selections, unknown/empty intersections, route search, clear/remove, short phone layouts, keyboard viewport resizing, 44px primary touch targets, keyboard behaviour, fast playback, looping, GPU fallback and disk-cache reuse. Two profiling checks remain opt-in.
 - Visual inspection at 390×730 and automated 375×600 checks reserve space for the map and keep attribution, search and timeline within the viewport.
-- Local WebKit can open a data URL but stalls before HTTP navigation; GitHub Actions runs the WebKit/iPhone regression suite before Pages deployment. Browser emulation is not a physical iPhone measurement.
+- Local WebKit can open a data URL but stalls before HTTP navigation; GitHub Actions passed the WebKit/iPhone regression suite in run 35134059651 before Pages deployment. Browser emulation is not a physical iPhone measurement.

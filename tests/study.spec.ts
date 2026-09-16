@@ -127,3 +127,14 @@ test('short phone viewport keeps search, playback and touch targets clear',async
  await page.screenshot({path:`test-results/${test.info().project.name}-short-phone.png`,fullPage:true})
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true)
 })
+
+test('search results resize above the phone keyboard viewport',async({page})=>{
+ await page.setViewportSize({width:390,height:664});await ready(page)
+ await page.getByRole('combobox',{name:'Search flights'}).fill('London')
+ await page.evaluate(()=>{Object.defineProperty(visualViewport!,'height',{value:330,configurable:true});visualViewport!.dispatchEvent(new Event('resize'))})
+ const results=await page.locator('.search-popover').boundingBox()
+ expect(results!.y+results!.height).toBeLessThanOrEqual(318)
+ await page.getByRole('option',{name:/^LHR London/}).click()
+ await expect(page.getByRole('button',{name:'Remove LHR'})).toBeVisible()
+ await expect(page.getByRole('listbox')).toHaveCount(0)
+})

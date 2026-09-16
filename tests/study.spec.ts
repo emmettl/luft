@@ -11,6 +11,7 @@ test('airport search, shared board, selected tracks, phone layout and fast strea
  await expect(page.locator('.ms-airport-hero')).toContainText('Arrivals')
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await page.waitForTimeout(1200);await page.screenshot({path:`test-results/${test.info().project.name}-airport.png`,fullPage:true})
+ await page.getByRole('button',{name:'Hour density',exact:true}).click();await expect(page.locator('.count')).toContainText('Full study window');await expect(page.locator('.airport-key')).toHaveCount(0);await page.getByRole('button',{name:'Motion',exact:true}).click()
  await page.getByRole('button',{name:'Clear airport'}).click()
  await page.getByRole('slider',{name:'Time of day UTC'}).fill('28500')
  await page.getByRole('combobox',{name:'Playback speed'}).selectOption('900')

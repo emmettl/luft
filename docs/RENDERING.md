@@ -38,3 +38,7 @@ A switchable batched Three.js aircraft layer is now available for device evaluat
 3. If drawing remains dominant, benchmark a shared GPU aircraft adapter or separately budgeted trails with the same data and visual output. Require exact pause/seek, gap preservation, correct picking/selection and recovery after context loss. Avoid reducing observation fidelity simply to improve a frame counter.
 
 Unit tests cover idle invalidation, cached land, resize/selection/data changes, offscreen counts, crossing trails, density invalidation and gap preservation. The browser regression suite covers airport/carrier filtering, fast streaming, failed-chunk retry, midnight looping and responsive controls. The shared packed-consumer check protects the existing Three.js import as well as the new core entry point.
+
+## Retained GPU follow-up — 0.2.1
+
+The first Windows Edge comparison favoured Canvas. The follow-up retains timestamped trails in minute batches, updates aircraft state in a compact texture, and exposes CPU stage timings. Canvas stays the default. See [the comparison guide](COMPARISON.md) for the rendering contract, device procedure, limitations and evidence; the earlier Canvas table above is not a measurement of this GPU change.

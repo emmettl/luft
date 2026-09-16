@@ -50,20 +50,21 @@ it('preserves observation gaps and only repaints density when its inputs change'
  map.draw(gapped,66,undefined,'density',cells);expect(ctx.clearRect).toHaveBeenCalledTimes(draws)
  map.draw(gapped,66,undefined,'density',[[0,50,4]]);expect(ctx.clearRect).toHaveBeenCalledTimes(draws+1)
 })
-it('feeds the GPU backend the same valid segments, positions and layer emphasis',()=>{
- const painter={begin:vi.fn(),style:vi.fn(),segment:vi.fn(),point:vi.fn(),end:vi.fn(),clear:vi.fn(),dispose:vi.fn(),stats:()=>({calls:2,triangles:4,points:1})}
+it('feeds retained GPU state the shared positions, gap validity, selection and projection',()=>{
+ const painter={begin:vi.fn(),prepare:vi.fn(),aircraft:vi.fn(),end:vi.fn(),clear:vi.fn(),dispose:vi.fn(),stats:()=>({calls:2,triangles:4,points:1,geometryBuilds:1,geometryBytes:64,geometryPreparedBytes:0,stateUploadBytes:16})}
  const map=new AirMap(canvas,land,[]),gapped=[track('gapped',[[0,0,50,10000,300],[60,1,50,10000,300],[70,2,50,10000,300]])]
  const expected=map.draw(gapped,65,undefined,'motion',cells)
  map.setPainter(painter)
  expect(map.draw(gapped,65,undefined,'motion',cells)).toEqual(expected)
- expect(painter.segment).toHaveBeenCalledTimes(1)
- expect(painter.point).toHaveBeenCalledWith(...map.project(1.5,50))
- expect(painter.style).toHaveBeenLastCalledWith(0,'#86bac7',1,.65,1.2)
+ expect(painter.prepare).toHaveBeenCalledWith(gapped,undefined,undefined)
+ expect(painter.aircraft).toHaveBeenLastCalledWith(0,expect.objectContaining({longitude:1.5,latitude:50}),true)
+ map.draw(gapped,30,undefined,'motion',cells);expect(painter.aircraft).toHaveBeenLastCalledWith(0,undefined,false)
  const basePaints=vi.mocked(ctx.clearRect).mock.calls.length
  vi.stubGlobal('devicePixelRatio',2);map.draw(gapped,65,undefined,'motion',cells)
  expect(ctx.clearRect).toHaveBeenCalledTimes(basePaints+1)
  map.selectedFlight='gapped';map.draw(gapped,65,undefined,'motion',cells)
- expect(painter.style).toHaveBeenLastCalledWith(2,'#ffffff',1,2,3.5)
+ expect(painter.prepare).toHaveBeenLastCalledWith(gapped,undefined,'gapped')
+ expect(painter.begin).toHaveBeenLastCalledWith(1000,800,2,expect.objectContaining({xScale:.62*map.scale,yScale:-map.scale}),65)
  map.draw(gapped,65,undefined,'density',cells);expect(painter.clear).toHaveBeenCalledTimes(1)
  map.setPainter();expect(painter.dispose).toHaveBeenCalledTimes(1)
  expect(map.draw(gapped,65,undefined,'motion',cells)).toEqual(expected)

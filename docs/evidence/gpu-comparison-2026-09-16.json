@@ -1,0 +1,90 @@
+{
+  "date": "2026-09-16",
+  "fieldObservation": {
+    "source": "Two user-supplied photos of LUFT 0.2.0 on Windows Edge",
+    "paceMinutesPerSecond": 5,
+    "canvas": {
+      "drawCpuP95Ms": 42.5,
+      "paintIntervalP95Ms": 83.6,
+      "bufferSeconds": 0
+    },
+    "three": {
+      "drawCpuP95Ms": 72.2,
+      "paintIntervalP95Ms": 99.9,
+      "bufferSeconds": 0,
+      "drawCalls": 2
+    },
+    "limitations": [
+      "Different playback positions",
+      "Viewport, hardware, browser version and sample counts were not captured",
+      "Not a controlled benchmark"
+    ]
+  },
+  "localReplay": {
+    "command": "LUFT_GPU_PROFILE=0.2.1-minute-buckets npm run test:browser -- tests/gpu-profile.spec.ts --project=chromium --workers=1",
+    "browser": "Chromium 153.0.8010.12",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "date": "2026-09-14",
+    "chunk": 42,
+    "framesPerRenderer": 80,
+    "warmupFramesDiscarded": 10,
+    "timeStartSeconds": 25200,
+    "timeStepSeconds": 3,
+    "results": [
+      {
+        "renderer": "canvas",
+        "samples": 70,
+        "drawCpuP95Ms": 3.2,
+        "stagesP95Ms": {
+          "setup": 0.1,
+          "sampling": 1.3,
+          "geometry": 2.0,
+          "submission": 0
+        }
+      },
+      {
+        "renderer": "three-v020",
+        "samples": 70,
+        "drawCpuP95Ms": 3.7,
+        "stagesP95Ms": null,
+        "gpu": {
+          "calls": 2,
+          "triangles": 65330,
+          "points": 2728
+        }
+      },
+      {
+        "renderer": "three-retained",
+        "samples": 70,
+        "drawCpuP95Ms": 2.2,
+        "stagesP95Ms": {
+          "setup": 0.1,
+          "sampling": 2.0,
+          "geometry": 0,
+          "submission": 0.2
+        },
+        "gpu": {
+          "calls": 5,
+          "triangles": 90094,
+          "points": 3344,
+          "geometryBuilds": 1,
+          "geometryBytes": 4946928,
+          "geometryPreparedBytes": 0,
+          "stateUploadBytes": 65536
+        }
+      }
+    ],
+    "limitations": [
+      "Single local run, rounded to 0.1 ms",
+      "CPU timing excludes asynchronous GPU completion and presentation",
+      "Warm replay of one chunk excludes chunk decoding and cold geometry preparation",
+      "Stage percentiles are independent and do not add to total p95",
+      "Original 0.2.0 baseline has no stage instrumentation; null means unavailable",
+      "Submitted triangles and points include shader-hidden instances",
+      "This does not establish Windows Edge performance"
+    ]
+  }
+}

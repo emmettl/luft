@@ -1,11 +1,13 @@
-/** Aircraft-only backend. Projection, observed positions, gaps and picking stay in AirMap. */
+import type {AirTrack,AirPosition} from '@motionstudies/core/domain/air'
+export type AircraftProjection={xScale:number;yScale:number;xOffset:number;yOffset:number}
+export type AircraftStats={calls:number;triangles:number;points:number;geometryBuilds:number;geometryBytes:number;geometryPreparedBytes:number;stateUploadBytes:number}
+/** Retained aircraft backend. Shared CPU sampling still owns validity, counts and picking. */
 export interface AircraftPainter {
- begin(width:number,height:number,dpr:number):void
- style(layer:number,colour:string,opacity:number,width:number,radius:number):void
- segment(x1:number,y1:number,x2:number,y2:number):void
- point(x:number,y:number):void
+ begin(width:number,height:number,dpr:number,projection:AircraftProjection,time:number):void
+ prepare(tracks:AirTrack[],airport?:string,selected?:string):void
+ aircraft(index:number,position:AirPosition|undefined,visible:boolean):void
  end():void
  clear():void
  dispose():void
- stats():{calls:number;triangles:number;points:number}
+ stats():AircraftStats
 }

@@ -1,4 +1,4 @@
-import React,{useLayoutEffect,useMemo,useRef,useState} from 'react'
+import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {searchAirports} from '@motionstudies/core/domain/airport'
 import {AIRLINES} from './airlines'
 import type {Airport} from './data'
@@ -9,7 +9,22 @@ type Result={type:keyof Selection;id:string;label:string;detail:string}
 type Props={airports:Airport[];routes:ReturnType<typeof observedRoutes>;selection:Selection;onChange:(selection:Selection)=>void;onAirportBoard:(airport:Airport)=>void}
 export function FlightSearch({airports,routes,selection,onChange,onAirportBoard}:Props){
  const [query,setQuery]=useState(''),[open,setOpen]=useState(false),[active,setActive]=useState(0)
+ const root=useRef<HTMLDivElement>(null)
  const input=useRef<HTMLInputElement>(null)
+ useEffect(()=>{
+  if(!open)return
+  // A touch can blur the input before its click reaches a result (notably
+  // when iOS dismisses the keyboard). Blur alone is not an outside action.
+  const outside=(event:Event)=>{
+   if(event.target instanceof Node&&!root.current?.contains(event.target)){
+    setOpen(false)
+    if(event.type==='pointerdown')input.current?.blur()
+   }
+  }
+  document.addEventListener('pointerdown',outside,true)
+  document.addEventListener('focusin',outside)
+  return()=>{document.removeEventListener('pointerdown',outside,true);document.removeEventListener('focusin',outside)}
+ },[open])
  const popover=useRef<HTMLDivElement>(null)
  useLayoutEffect(()=>{
   if(!open)return
@@ -36,7 +51,7 @@ export function FlightSearch({airports,routes,selection,onChange,onAirportBoard}
  const remove=(type:keyof Selection,id:string)=>onChange({...selection,[type]:selection[type].filter(value=>value!==id)})
  const pills:Result[]=[...selection.airports.map(id=>{const a=airports.find(a=>a.icao===id)!;return {type:'airports' as const,id,label:a.iata||id,detail:a.name}}),...selection.airlines.map(id=>({type:'airlines' as const,id,label:AIRLINES.find(a=>a.id===id)!.name,detail:'Airline'})),...selection.routes.map(id=>({type:'routes' as const,id,label:routes.find(r=>r.id===id)!.label,detail:'Route · both directions'}))]
  const names={airports:'Airports',airlines:'Airlines',routes:'Routes · both directions'}
- return <div className="flight-search" onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))setOpen(false)}}>
+ return <div ref={root} className="flight-search">
   <div className="unified-input"><span aria-hidden="true">⌕</span><input ref={input} aria-label="Search flights" placeholder="Airports, airlines or routes" autoComplete="off" role="combobox" aria-expanded={open} aria-controls="flight-results" aria-activedescendant={open&&results[active]?`flight-result-${active}`:undefined} value={query} onFocus={()=>setOpen(true)} onChange={e=>{setQuery(e.target.value);setActive(0);setOpen(true)}} onKeyDown={event=>{
    if(event.key==='ArrowDown'){event.preventDefault();setOpen(true);setActive(i=>Math.min(results.length-1,i+1))}
    if(event.key==='ArrowUp'){event.preventDefault();setActive(i=>Math.max(0,i-1))}
@@ -48,6 +63,6 @@ export function FlightSearch({airports,routes,selection,onChange,onAirportBoard}
    {pill.type==='airports'?<button className="pill-label" title={`Open ${pill.detail} board`} onClick={()=>onAirportBoard(airports.find(a=>a.icao===pill.id)!)}>{pill.label}</button>:<span title={pill.detail}>{pill.label}</span>}
    <button className="pill-remove" aria-label={`Remove ${pill.label}`} onClick={()=>remove(pill.type,pill.id)}>×</button>
   </div>)}<button className="clear-filters" onClick={()=>onChange({airports:[],airlines:[],routes:[]})}>Clear all</button></div>}
-  {open&&<div ref={popover} className="search-popover"><p className="search-guidance">Add several in each group. Combine groups to narrow the view.</p><div id="flight-results" role="listbox" aria-label="Flight filters">{results.map((result,i)=><React.Fragment key={`${result.type}:${result.id}`}>{(i===0||results[i-1].type!==result.type)&&<div className="result-heading" role="presentation">{names[result.type]}</div>}<button type="button" id={`flight-result-${i}`} role="option" aria-selected={active===i} onPointerDown={event=>event.preventDefault()} onClick={()=>add(result)}><strong>{result.label}</strong><span>{result.detail}</span><span aria-hidden="true">+</span></button></React.Fragment>)}{!results.length&&<p className="search-empty">No matches. Try an airport code, airline name or two airport codes.</p>}</div></div>}
+  {open&&<div ref={popover} className="search-popover"><p className="search-guidance">Add several in each group. Combine groups to narrow the view.</p><div id="flight-results" role="listbox" aria-label="Flight filters">{results.map((result,i)=><React.Fragment key={`${result.type}:${result.id}`}>{(i===0||results[i-1].type!==result.type)&&<div className="result-heading" role="presentation">{names[result.type]}</div>}<button type="button" id={`flight-result-${i}`} role="option" aria-selected={active===i} onPointerDown={event=>{if(event.pointerType==='mouse')event.preventDefault()}} onClick={()=>add(result)}><strong>{result.label}</strong><span>{result.detail}</span><span aria-hidden="true">+</span></button></React.Fragment>)}{!results.length&&<p className="search-empty">No matches. Try an airport code, airline name or two airport codes.</p>}</div></div>}
  </div>
 }

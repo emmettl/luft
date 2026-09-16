@@ -1,6 +1,7 @@
+import {pauseAtStart} from './playback-helpers'
 import {test,expect,type Page} from '@playwright/test'
 const add=async(page:Page,query:string,name:RegExp)=>{const search=page.getByRole('combobox',{name:'Search flights'});await search.fill(query);await page.getByRole('option',{name}).click()}
-const ready=async(page:Page)=>{await page.goto('./');await expect(page.locator('.play')).toBeEnabled()}
+const ready=async(page:Page)=>{await page.goto('./');await pauseAtStart(page)}
 
 test('unified pills combine airlines, airports and routes across map, activity and boards',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))

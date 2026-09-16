@@ -1,9 +1,10 @@
+import {pauseAtStart} from './playback-helpers'
 import {test,expect} from '@playwright/test'
 
 test('Space toggles playback once per press without scrolling or stealing control keys',async({page})=>{
  await page.goto('./')
  const play=page.locator('.play')
- await expect(play).toBeEnabled()
+ await pauseAtStart(page)
  // An unfocused map/background owns the playback shortcut.
  await page.locator('canvas').click({position:{x:10,y:10},force:true})
  const scroll=await page.evaluate(()=>({x:scrollX,y:scrollY}))
@@ -40,7 +41,7 @@ test('Space toggles playback once per press without scrolling or stealing contro
  await expect(play).toBeDisabled();await expect(play).toHaveText('Play')
 })
 
-test('Space cannot start playback before observations are ready',async({page})=>{
+test('Space cannot toggle pending autoplay before observations are ready',async({page})=>{
  let release:()=>void=()=>{}
  const gate=new Promise<void>(resolve=>{release=resolve})
  await page.route('**/chunk-042.json.gz.bin',async route=>{await gate;await route.continue()})
@@ -49,9 +50,9 @@ test('Space cannot start playback before observations are ready',async({page})=>
   await expect(page.locator('.play')).toBeVisible()
   await expect(page.locator('.play')).toBeDisabled()
   await page.keyboard.press('Space')
-  await expect(page.locator('.play')).toHaveText('Play')
+  await expect(page.locator('.play')).toHaveText('Pause')
  }finally{release()}
  await expect(page.locator('.play')).toBeEnabled()
  await page.keyboard.press('Space')
- await expect(page.locator('.play')).toHaveText('Pause')
+ await expect(page.locator('.play')).toHaveText('Play')
 })

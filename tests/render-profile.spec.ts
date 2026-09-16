@@ -1,3 +1,4 @@
+import {pauseAtStart} from './playback-helpers'
 import {test,expect} from '@playwright/test'
 
 test('local Canvas work profile',async({page},info)=>{
@@ -12,7 +13,7 @@ test('local Canvas work profile',async({page},info)=>{
    }
   }
  })
- await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await page.goto('./');await pauseAtStart(page)
  const results=[]
  for(const view of ['Europe','Britain']){
   await page.getByRole('button',{name:view,exact:true}).click()

@@ -1,9 +1,10 @@
+import {pauseAtStart} from './playback-helpers'
 import {test,expect,type Page} from '@playwright/test'
 const add=async(page:Page,q:string)=>{await page.getByRole('combobox',{name:'Search flights'}).fill(q);await page.getByRole('combobox',{name:'Search flights'}).press('Enter')}
 
 test('renderer switches preserve clock, carrier and airport; GPU draws and falls back after context loss',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
- await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await page.goto('./');await pauseAtStart(page)
  await add(page,'SWISS')
  await expect(page.locator('.selection-summary')).toContainText('97 aircraft')
  await add(page,'ZRH');await page.getByRole('button',{name:'ZRH board'}).click()
@@ -22,7 +23,7 @@ test('renderer switches preserve clock, carrier and airport; GPU draws and falls
  await expect(page.locator('.diagnostics')).toContainText(/[1-9]\d* GPU draw calls/)
  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{value:{writeText:async(text:string)=>{(window as any).__copiedResults=text}},configurable:true}))
  await page.getByRole('button',{name:'Copy results'}).click();await expect(page.locator('.diagnostics')).toContainText('Results copied')
- const copied=await page.evaluate(()=>JSON.parse((window as any).__copiedResults));expect(copied.renderer).toBe('three');expect(copied.release).toBe('0.3.0');expect(copied.gpu.calls).toBeGreaterThan(0);expect(copied.stagesP95Ms).toEqual(expect.objectContaining({sampling:expect.any(Number),geometry:expect.any(Number),submission:expect.any(Number)}));expect(copied.gpu.stateUploadBytes).toBeGreaterThan(0)
+ const copied=await page.evaluate(()=>JSON.parse((window as any).__copiedResults));expect(copied.renderer).toBe('three');expect(copied.release).toBe('0.3.1');expect(copied.gpu.calls).toBeGreaterThan(0);expect(copied.stagesP95Ms).toEqual(expect.objectContaining({sampling:expect.any(Number),geometry:expect.any(Number),submission:expect.any(Number)}));expect(copied.gpu.stateUploadBytes).toBeGreaterThan(0)
  await page.screenshot({path:`test-results/${test.info().project.name}-three.png`,fullPage:true})
  await page.getByRole('button',{name:'Reset measurements'}).click()
  await page.getByRole('button',{name:'Device details'}).click()
@@ -41,7 +42,7 @@ test('renderer switches preserve clock, carrier and airport; GPU draws and falls
 })
 test('Three.js direct link works and density can return to moving aircraft',async({page})=>{
  await page.goto('./?renderer=three');await page.getByRole('button',{name:'View settings',exact:true}).click();await expect(page.getByRole('combobox',{name:'Aircraft renderer'})).toHaveValue('three')
- await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await pauseAtStart(page)
  await page.getByRole('button',{name:'Hour density',exact:true}).click()
  await page.getByRole('slider').fill('43200');await expect(page.getByRole('slider')).toHaveValue('43200')
  await page.getByRole('button',{name:'Motion',exact:true}).click()
@@ -52,7 +53,7 @@ test('Three.js direct link works and density can return to moving aircraft',asyn
 test('unavailable WebGL returns to the working Canvas renderer',async({page})=>{
  await page.addInitScript(()=>{const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type:string,...args:any[]){if(type==='webgl2'||type==='webgl')return null;return Reflect.apply(original,this,[type,...args])} as typeof original})
  await page.goto('./?renderer=three');await page.getByRole('button',{name:'View settings',exact:true}).click()
- await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await pauseAtStart(page)
  await expect(page.getByRole('combobox',{name:'Aircraft renderer'})).toHaveValue('canvas')
  await expect(page.locator('.renderer-picker')).toContainText('unavailable')
  await expect(page.locator('.count')).toContainText('aircraft')
@@ -60,7 +61,7 @@ test('unavailable WebGL returns to the working Canvas renderer',async({page})=>{
 })
 test('GPU playback loops at midnight without changing renderer or carrier',async({page})=>{
  await page.goto('./?renderer=three');await page.getByRole('button',{name:'View settings',exact:true}).click();await expect(page.getByRole('combobox',{name:'Aircraft renderer'})).toHaveValue('three')
- await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await pauseAtStart(page)
  await add(page,'easyJet')
  await expect(page.locator('.selection-summary')).toContainText('361 aircraft')
  await page.getByRole('slider').fill('86399');await expect(page.getByRole('slider')).toHaveValue('86399')

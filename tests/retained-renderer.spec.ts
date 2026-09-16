@@ -1,7 +1,8 @@
+import {pauseAtStart} from './playback-helpers'
 import {test,expect} from '@playwright/test'
 
 test('retained shaders preserve exact-time heads, gaps and tail expiry without rebuilding on time or view changes',async({page})=>{
- await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await page.goto('./');await pauseAtStart(page)
  const result=await page.evaluate(async()=>{
   const {GpuAircraftPainter}=await import('/luft/src/gpu-aircraft.ts' as string)
   const {positionForAirTrack}=await import('/luft/node_modules/@motionstudies/core/domain/air.js' as string)

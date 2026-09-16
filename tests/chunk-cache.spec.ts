@@ -1,3 +1,4 @@
+import {pauseAtStart} from './playback-helpers'
 import {test,expect} from '@playwright/test'
 import {mkdtemp,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
@@ -6,7 +7,7 @@ import {join} from 'node:path'
 test('evicted decoded chunks reuse verified disk data without another request',async({page})=>{
  const requests=new Map<string,number>()
  page.on('request',request=>{const path=new URL(request.url()).pathname;if(/chunk-\d+\.json\.gz\.bin$/.test(path))requests.set(path,(requests.get(path)??0)+1)})
- await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await page.goto('./');await pauseAtStart(page)
  const saved=()=>page.evaluate(async()=>{const cache=await caches.open('luft-track-data-v1');return (await cache.keys()).length})
  await expect.poll(saved).toBe(4)
  const original=new Map(requests)
@@ -21,7 +22,7 @@ test('evicted decoded chunks reuse verified disk data without another request',a
 
 test('storage failure keeps ordinary playback and reports the fallback',async({page})=>{
  await page.addInitScript(()=>{Object.defineProperty(window,'caches',{value:{open:async()=>{throw new DOMException('blocked','SecurityError')}},configurable:true})})
- await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await page.goto('./');await pauseAtStart(page)
  await page.getByRole('button',{name:'Device details'}).click()
  await expect(page.locator('.diagnostics')).toContainText('Local storage unavailable')
  await page.getByRole('button',{name:'Device details'}).click()
@@ -37,10 +38,10 @@ test('saved chunks survive reload in a persistent browser profile',async({playwr
  try{
   const page=await context.newPage();let requests=0
   page.on('request',r=>{if(/chunk-\d+\.json\.gz\.bin$/.test(new URL(r.url()).pathname))requests++})
-  await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+  await page.goto('./');await pauseAtStart(page)
   await expect.poll(()=>page.evaluate(async()=>{const c=await caches.open('luft-track-data-v1');return (await c.keys()).length})).toBe(4)
   const before=requests
-  await page.reload();await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+  await page.reload();await pauseAtStart(page)
   await page.getByRole('button',{name:'Device details'}).click()
   await expect(page.locator('.diagnostics')).toContainText('4 cache hits')
   await expect(page.locator('.diagnostics')).toContainText('0.0 MiB track response data')

@@ -1,9 +1,10 @@
+import {pauseAtStart} from './playback-helpers'
 import {test,expect} from '@playwright/test'
 
 test('repeatable renderer work profile',async({page},info)=>{
  test.setTimeout(240000)
  test.skip(!process.env.LUFT_GPU_PROFILE||info.project.name!=='chromium','Opt-in local work evidence, not a device performance gate')
- await page.goto('./');await expect(page.getByRole('button',{name:'Play',exact:true})).toBeEnabled()
+ await page.goto('./');await pauseAtStart(page)
  const reports=await page.evaluate(async()=>{
   // Replay identical times and inputs outside the UI, with one frame per browser tick.
   const {AirMap}=await import('/luft/src/map.ts' as string)

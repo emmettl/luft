@@ -59,6 +59,8 @@ The first release reuses captures already acquired for the Europe proof. It is e
 
 ## Playback and device evaluation
 
+Playback starts automatically when observations are ready. Scrubbing preserves whether playback is running or paused: the clock follows the gesture, then continues from the chosen time if it was playing.
+
 Press **Space** to play or pause while the map is active. Search fields and focused controls keep their normal keyboard behaviour. Holding Space does not repeatedly toggle playback; playback remains unavailable in Hour density or before observations load.
 
 The browser verifies each compressed chunk's SHA-256. A short look-ahead cache shares in-flight requests. Seeking cancels obsolete requests. Late chunks hold the last frame and the clock without flashing a loading overlay; failed loads pause and offer a retry. Gaps over 45 seconds are never interpolated or joined by a trail. Playback loops automatically from midnight to the start of the recorded day, preserving the airline, airport, map view and pace. The look-ahead cache wraps too, preparing the opening chunks before midnight. Hidden tabs pause playback.

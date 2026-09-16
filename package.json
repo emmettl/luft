@@ -1,6 +1,6 @@
 {
   "name": "luft",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "LUFT \u2014 observed flights over Europe, a Motion Studies research edition",

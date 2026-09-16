@@ -5,6 +5,7 @@ import {AirportHeroCard} from '@motionstudies/web/components/AirportHeroCard'
 import '@motionstudies/web/airport-hero-card.css'
 import '@motionstudies/web/split-flap-board.css'
 import {AirMap,BRITAIN,cityLabel} from './map'
+import {MapGesture} from './map-gesture'
 import {ChunkStore,loadRelease,type Airport,type Chunk} from './data'
 import {FlightSearch} from './FlightSearch'
 import {EMPTY_SELECTION,matchesSelection,selectionActivity,observedRoutes,airlineLabel,type Selection} from './filters'
@@ -112,19 +113,16 @@ function Study({release}:{release:Release}) {
   const endpoint=track.origin?.icao===airport?.icao?track.origin:track.destination?.icao===airport?.icao?track.destination:undefined
   void seek(Math.min(track.end,Math.max(track.start,endpoint?.time??engine.current.time)))
  }
- const pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef({x:0,y:0,moved:false,distance:0})
- const down=(event:React.PointerEvent)=>{canvas.current!.setPointerCapture(event.pointerId);pointers.current.set(event.pointerId,{x:event.clientX,y:event.clientY});gesture.current={x:event.clientX,y:event.clientY,moved:false,distance:0}}
- const move=(event:React.PointerEvent)=>{const p=pointers.current;if(!p.has(event.pointerId))return;p.set(event.pointerId,{x:event.clientX,y:event.clientY});const g=gesture.current
-  if(p.size===2){const [a,b]=[...p.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(g.distance)map.current?.zoom(g.distance/d);g.distance=d;g.moved=true}
-  else{const dx=event.clientX-g.x,dy=event.clientY-g.y;if(Math.hypot(dx,dy)>2)g.moved=true;map.current?.pan(dx,dy)}g.x=event.clientX;g.y=event.clientY
- }
- const up=(event:React.PointerEvent)=>{pointers.current.delete(event.pointerId);if(gesture.current.moved)return;const rect=canvas.current!.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;const point=map.current?.points.map(p=>({...p,d:Math.hypot(p.x-x,p.y-y)})).sort((a,b)=>a.d-b.d)[0];if(point&&point.d<20){setFlight(point.track.id);map.current!.selectedFlight=point.track.id}else{setFlight('');map.current!.selectedFlight=undefined}}
+ const gesture=useRef(new MapGesture())
+ const down=(event:React.PointerEvent)=>{canvas.current!.setPointerCapture(event.pointerId);gesture.current.down(event)}
+ const move=(event:React.PointerEvent)=>{if(map.current)gesture.current.move(event,map.current)}
+ const up=(event:React.PointerEvent)=>{if(!gesture.current.up(event))return;const rect=canvas.current!.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;const point=map.current?.points.map(p=>({...p,d:Math.hypot(p.x-x,p.y-y)})).sort((a,b)=>a.d-b.d)[0];if(point&&point.d<20){setFlight(point.track.id);map.current!.selectedFlight=point.track.id}else{setFlight('');map.current!.selectedFlight=undefined}}
  const selected=useMemo(()=>flight?index.aircraft.find(t=>t.id===flight):undefined,[index,flight])
  return <main className="study">
   <header><div className="identity"><a className="eyebrow" href="https://emmettl.github.io/motionstudies/">Motion Studies / research</a><h1>LUFT<span>Flights over Europe</span></h1></div><div className="date">{new Date(`${manifest.date}T12:00:00Z`).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})}<span>Recorded observations · UTC</span></div></header>
   <div className="workspace">
    <section className="stage" aria-label="Map of observed aircraft over Europe">
-    <canvas ref={canvas} aria-label="Aircraft map. Drag to pan; pinch to zoom. Use search to filter airports, airlines and routes." onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={()=>{pointers.current.clear();gesture.current.moved=true}} onWheel={e=>map.current?.zoom(e.deltaY>0?1.15:.87)}/>
+    <canvas ref={canvas} aria-label="Aircraft map. Drag to pan; pinch to zoom. Use search to filter airports, airlines and routes." onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={event=>gesture.current.cancel(event)} onLostPointerCapture={event=>gesture.current.cancel(event)} onWheel={e=>map.current?.zoom(e.deltaY>0?1.15:.87)}/>
     <canvas ref={accentCanvas} className="movement-layer" aria-hidden="true"/>
     <div className="map-caption"><div className="clock">{stamp(ui.time)}<small> UTC</small></div><div className="count">{mode==='density'?'Hourly density · 5-minute snapshots':`${ui.total.toLocaleString()} aircraft${selectionLabel?` · ${selectionLabel}`:' over Europe'}`}</div>{selectedAirports.length>0&&mode==='motion'&&<div className="airport-key"><span>● {ui.inbound} inbound</span><span>● {ui.outbound} outbound</span></div>}</div>
     {!engine.current.chunk&&<div className="initial-loading" role="status">{status}</div>}

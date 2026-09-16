@@ -5,7 +5,7 @@ import {trackDirection} from './retained-trails'
 const make=(id:string,identity:string,callsign:string,origin?:string,destination?:string)=>({id,icaoAddress:identity,callsign,start:0,end:86400,origin:origin?{icao:origin}:undefined,destination:destination?{icao:destination}:undefined}) as Index['aircraft'][number]
 const a=make('a','one','SWR1','LSZH','EGLL'),b=make('b','two','EZY2','LFPG','EGLL'),c=make('c','three','BAW3'),d=make('d','one','SWR4','EGLL','LSZH')
 it('unions within categories and intersects across categories, excluding unknown endpoints',()=>{
- const s={airlines:['swiss','easyjet'] as const,airports:['LSZH','EGLL'],routes:['EGLL|LSZH']}
+ const s={airlines:['swiss','easyjet'] as const,airports:['LSZH','EGLL'],routes:['EGLL|LSZH'],countries:[]}
  expect([a,b,c,d].filter(t=>matchesSelection(t,{...s,airlines:[...s.airlines]})).map(t=>t.id)).toEqual(['a','d'])
  expect(routeKey(a)).toBe(routeKey(d))
  expect(matchesSelection(c,EMPTY_SELECTION)).toBe(true)

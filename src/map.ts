@@ -8,6 +8,7 @@ import {VisibilityFades} from './visibility-fades'
 import {layoutAirportLabels,type AirportLabel} from './airport-labels'
 import type {MapLabelBox} from '@motionstudies/core/map-labels'
 import {DaylightLayer} from './daylight'
+import {countryAirportIds,type Country} from './countries'
 export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
@@ -38,10 +39,22 @@ export class AirMap {
  private labelKey=''
  private labelObstacles:readonly MapLabelBox[]=[]
  private obstacleKey=''
+ private countries:readonly Country[]=[]
+ private selectedCountries:readonly string[]=[]
+ private countryAirportCodes:ReadonlySet<string>=new Set()
+ private countryAirports:readonly Airport[]=[]
+ private geographyDirty=false
+ setCountries(countries:readonly Country[],selected:readonly string[]=[]){
+  if(countries===this.countries&&selected.join('|')===this.selectedCountries.join('|'))return
+  this.countries=countries;this.selectedCountries=[...selected]
+  this.countryAirportCodes=countryAirportIds(countries,selected)
+  this.countryAirports=this.airports.filter(a=>this.countryAirportCodes.has(a.icao))
+  this.geographyDirty=true;this.labelKey='';this.baseKey='';this.revision++
+ }
  setLabelObstacles(boxes:readonly MapLabelBox[]){const key=JSON.stringify(boxes);if(key!==this.obstacleKey){this.obstacleKey=key;this.labelObstacles=boxes;this.revision++}}
  private updateAirportLabels(codes:readonly string[]){
   const key=`${this.projection}:${codes.join('|')}:${this.obstacleKey}`;if(key===this.labelKey)return;this.labelKey=key
-  this.airportLabels=layoutAirportLabels(this.airports,this.labelOptions?.ranks??new Map(this.airports.map((a,i)=>[a.icao,i])),new Set(codes),new Set(this.airportLabels.map(label=>label.airport.icao)),this.view.north-this.view.south,this.width,this.height,(lon,lat)=>this.project(lon,lat),this.labelObstacles)
+  this.airportLabels=layoutAirportLabels(this.airports,this.labelOptions?.ranks??new Map(this.airports.map((a,i)=>[a.icao,i])),new Set(codes),new Set(this.airportLabels.map(label=>label.airport.icao)),this.view.north-this.view.south,this.width,this.height,(lon,lat)=>this.project(lon,lat),this.labelObstacles,this.countryAirportCodes)
   this.labelOptions?.onChange(this.airportLabels)
  }
  private resizeDirty=true;private dpr=0;private revision=0
@@ -90,7 +103,7 @@ export class AirMap {
    if(this.accentCanvas){this.accentCanvas.width=this.canvas.width;this.accentCanvas.height=this.canvas.height;this.accentContext?.setTransform(dpr,0,0,dpr,0,0)}
   }
   const key=[this.width,this.height,this.view.west,this.view.south,this.view.east,this.view.north].join(':')
-  if(key===this.projection)return
+  if(key===this.projection){if(this.geographyDirty)this.paintLand();return}
   const frameHeight=Math.max(1,this.height-this.topClearance-Math.min(this.height*.4,this.bottomClearance))
   this.scale=Math.min(this.width/((this.view.east-this.view.west)*.62),frameHeight/(this.view.north-this.view.south))
   this.left=(this.width-(this.view.east-this.view.west)*.62*this.scale)/2
@@ -98,11 +111,28 @@ export class AirMap {
   this.projection=key;this.revision++;this.paintLand()
  }
  private paintLand(){
+  this.geographyDirty=false
   this.backdrop.width=this.canvas.width;this.backdrop.height=this.canvas.height
   const ctx=this.backdrop.getContext('2d')!;ctx.setTransform(this.dpr,0,0,this.dpr,0,0)
   ctx.fillStyle='#11202b';ctx.strokeStyle='#283640';ctx.lineWidth=.6;ctx.beginPath()
   for(const f of this.land.features){const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates as number[][][]]:f.geometry.coordinates as number[][][][];for(const poly of polys)for(const ring of poly){ring.forEach(([lon,lat],i)=>{const [x,y]=this.project(lon,lat);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});ctx.closePath()}}
   ctx.fill('evenodd');ctx.stroke()
+  const countryPath=(country:Country)=>{for(const polygon of country.polygons)for(const ring of polygon){ring.forEach(([lon,lat],i)=>{const [x,y]=this.project(lon,lat);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});ctx.closePath()}}
+  // Paint the selected fill and all boundaries into the retained geographic base.
+  for(const country of this.countries)if(this.selectedCountries.includes(country.code)){
+   ctx.beginPath();countryPath(country);ctx.fillStyle='#ddc49112';ctx.fill('evenodd')
+  }
+  if(this.countries.length){ctx.beginPath();for(const country of this.countries)countryPath(country);ctx.strokeStyle='#a4bcc52b';ctx.lineWidth=.55;ctx.stroke()}
+  for(const country of this.countries)if(this.selectedCountries.includes(country.code)){
+   ctx.beginPath();countryPath(country);ctx.strokeStyle='#dfc99855';ctx.lineWidth=.8;ctx.stroke()
+  }
+  // Every referenced airport gets a marker, even where its text label cannot fit.
+  for(const airport of this.countryAirports){
+   const [x,y]=this.project(airport.longitude,airport.latitude)
+   if(x<0||x>this.width||y<0||y>this.height)continue
+   ctx.strokeStyle='#ead2a6a6';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.stroke()
+   ctx.fillStyle='#f0d9af';ctx.beginPath();ctx.arc(x,y,1.3,0,Math.PI*2);ctx.fill()
+  }
   // Fade only the context outside the recorded area. Cache these masks with
   // the land so neither aircraft renderer adds compositing work per frame.
   const [left,top]=this.project(this.studyBounds.west,this.studyBounds.north)
@@ -138,6 +168,17 @@ export class AirMap {
   const south=Math.min(...airports.map(a=>a.latitude))-5,north=Math.max(...airports.map(a=>a.latitude))+5
   this.transitionTo({west:Math.max(this.studyBounds.west,west),east:Math.min(this.studyBounds.east,east),south:Math.max(this.studyBounds.south,south),north:Math.min(this.studyBounds.north,north)})
  }
+ frameCountries(codes:readonly string[]){
+  const selected=this.countries.filter(c=>codes.includes(c.code)),points=selected.flatMap(c=>c.polygons.flatMap(p=>p[0]))
+  if(!points.length){this.transitionTo(this.studyBounds);return}
+  const bounds=this.studyBounds
+  let west=bounds.east,east=bounds.west,south=bounds.north,north=bounds.south
+  for(const [x,y] of points){west=Math.min(west,x);east=Math.max(east,x);south=Math.min(south,y);north=Math.max(north,y)}
+  west=Math.max(bounds.west,west);east=Math.min(bounds.east,east);south=Math.max(bounds.south,south);north=Math.min(bounds.north,north)
+  if(west>=east||south>=north){this.transitionTo(bounds);return}
+  const padX=Math.max(2,(east-west)*.12),padY=Math.max(1.5,(north-south)*.12)
+  this.transitionTo({west:Math.max(bounds.west,west-padX),east:Math.min(bounds.east,east+padX),south:Math.max(bounds.south,south-padY),north:Math.min(bounds.north,north+padY)})
+ }
  private paintAccents(tracks:AirTrack[],time:number,clock:number){
   const ctx=this.accentContext;if(!ctx)return
   const accents=this.movements.advance(tracks,time,clock)
@@ -166,8 +207,8 @@ export class AirMap {
  }
  draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0,matchingIds?:ReadonlySet<string>) {
   const started=performance.now();this.advanceCamera(started);this.fit()
-  const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],codes=selectedAirports.map(a=>a.icao),hasAirports=codes.length>0
-  this.updateAirportLabels(codes)
+  const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],explicitCodes=selectedAirports.map(a=>a.icao),codes=[...new Set([...explicitCodes,...this.countryAirportCodes])],hasAirports=codes.length>0
+  this.updateAirportLabels(explicitCodes)
   const previous=this.inputs
   if(!previous||previous.tracks!==tracks||previous.airport!==airport||previous.mode!==mode||previous.cells!==cells||previous.selected!==this.selectedFlight||previous.matchingIds!==matchingIds){
    this.revision++;this.inputs={tracks,airport,mode,cells,selected:this.selectedFlight,matchingIds}

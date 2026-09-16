@@ -1,4 +1,6 @@
 import landUrl from './assets/europe-land-50m.json?url'
+import countriesUrl from './assets/europe-countries-50m.json?url'
+import type {CountryIndex} from './countries'
 import snapshotsUrl from './generated/snapshots.json?url'
 import type {SnapshotIndex} from './filters'
 import dataLock from '../data-release.json'
@@ -23,9 +25,10 @@ export async function loadRelease() {
  const r=await fetch(new URL('manifest.json',root)); if(!r.ok) throw new Error(`Release unavailable (${r.status})`)
  const manifest:Manifest=await r.json()
  if(manifest.kind!=='air-day-release'||manifest.schemaVersion!==1||manifest.chunks.length!==144) throw new Error('Unsupported air release')
- const [index,land,snapshots]=await Promise.all([verifiedJson<Index>(manifest.index),fetch(landUrl).then(async r=>{if(!r.ok)throw new Error('Land context unavailable');return await r.json() as Land}),fetch(snapshotsUrl).then(async r=>{if(!r.ok)throw new Error('Filter activity unavailable');return await r.json() as SnapshotIndex})])
+ const [index,land,snapshots,countryIndex]=await Promise.all([verifiedJson<Index>(manifest.index),fetch(landUrl).then(async r=>{if(!r.ok)throw new Error('Land context unavailable');return await r.json() as Land}),fetch(snapshotsUrl).then(async r=>{if(!r.ok)throw new Error('Filter activity unavailable');return await r.json() as SnapshotIndex}),fetch(countriesUrl).then(async r=>{if(!r.ok)throw new Error('Country context unavailable');return await r.json() as CountryIndex})])
  if(snapshots.date!==manifest.date||snapshots.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Filter activity belongs to another release')
- return {manifest,index,land,snapshots}
+ if(countryIndex.source.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Country airports belong to another release')
+ return {manifest,index,land,snapshots,countries:countryIndex.countries}
 }
 export class ChunkStore {
  cache=new Map<number,Chunk>()

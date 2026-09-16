@@ -15,6 +15,8 @@ for(const descriptor of manifest.chunks){
  if(chunk.windowStart!==descriptor.start||chunk.windowEnd!==descriptor.end)throw new Error('Chunk window mismatch')
  accumulateAirlines(accumulator,chunk.tracks,descriptor.start,descriptor.end)
 }
-const airlines=finishAirlines(accumulator), result={date:manifest.date,sourceManifestSha256:lock.manifestSha256,airlines}
-const directory=new URL('../src/generated/',import.meta.url);await mkdir(directory,{recursive:true});await writeFile(new URL('airlines.json',directory),JSON.stringify(result)+'\n')
+const airlines=finishAirlines(accumulator), provenance={date:manifest.date,sourceManifestSha256:lock.manifestSha256}
+const directory=new URL('../src/generated/',import.meta.url);await mkdir(new URL('airlines/',directory),{recursive:true})
+await writeFile(new URL('airlines.json',directory),JSON.stringify({...provenance,airlines:Object.fromEntries(Object.entries(airlines).map(([id,s])=>[id,{aircraft:s.aircraft}]))})+'\n')
+for(const [id,summary] of Object.entries(airlines))await writeFile(new URL(`airlines/${id}.json`,directory),JSON.stringify({...provenance,summary})+'\n')
 console.log(JSON.stringify(Object.fromEntries(Object.entries(airlines).map(([id,s])=>[id,{aircraft:s.aircraft,samples:s.samples,peakSnapshot:Math.max(...s.bins.map(b=>b.count))}]))))

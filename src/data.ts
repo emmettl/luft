@@ -1,5 +1,5 @@
 import airlineDataUrl from './generated/airlines.json?url'
-import type {AirlineSummaries} from './airlines'
+import type {AirlineCatalogue,AirlineData,AirlineId,AirlineSummary} from './airlines'
 import dataLock from '../data-release.json'
 import type { AirTrack } from '@motionstudies/core/domain/air'
 import type { AirSearchTrack } from '@motionstudies/core/air-search'
@@ -29,9 +29,21 @@ export async function loadRelease() {
  const r=await fetch(new URL('manifest.json',root)); if(!r.ok) throw new Error(`Release unavailable (${r.status})`)
  const manifest:Manifest=await r.json()
  if(manifest.kind!=='air-day-release'||manifest.schemaVersion!==1||manifest.chunks.length!==144) throw new Error('Unsupported air release')
- const [index,land,airlineSummaries]=await Promise.all([verifiedJson<Index>(manifest.index),verifiedJson<Land>(manifest.land),fetch(airlineDataUrl).then(async r=>{if(!r.ok)throw new Error('Airline data unavailable');return await r.json() as AirlineSummaries})])
- if(airlineSummaries.date!==manifest.date||airlineSummaries.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Airline data belongs to another release')
- return {manifest,index,land,airlineSummaries}
+ const [index,land,airlineCatalogue]=await Promise.all([verifiedJson<Index>(manifest.index),verifiedJson<Land>(manifest.land),fetch(airlineDataUrl).then(async r=>{if(!r.ok)throw new Error('Airline data unavailable');return await r.json() as AirlineCatalogue})])
+ if(airlineCatalogue.date!==manifest.date||airlineCatalogue.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Airline data belongs to another release')
+ return {manifest,index,land,airlineCatalogue}
+}
+const airlineAssets=import.meta.glob('./generated/airlines/*.json',{eager:true,query:'?url',import:'default'}) as Record<string,string>
+const airlineRequests=new Map<AirlineId,Promise<AirlineSummary>>()
+export function loadAirlineSummary(id:AirlineId):Promise<AirlineSummary>{
+ const existing=airlineRequests.get(id);if(existing)return existing
+ const request=fetch(airlineAssets[`./generated/airlines/${id}.json`]).then(async response=>{
+  if(!response.ok)throw new Error(`Airline activity unavailable (${response.status})`)
+  const data=await response.json() as AirlineData
+  if(data.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Airline activity belongs to another release')
+  return data.summary
+ }).catch(error=>{airlineRequests.delete(id);throw error})
+ airlineRequests.set(id,request);return request
 }
 export class ChunkStore {
  cache=new Map<number,Chunk>()

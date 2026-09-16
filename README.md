@@ -6,13 +6,19 @@ A recorded day of aircraft movement over Europe. A Motion Studies research editi
 
 Search by airport, city, IATA or ICAO code. Selecting an airport keeps the wider European view, highlights inbound tracks in blue and outbound tracks in gold, and dims unrelated traffic. The shared Motion Studies airport card shows observed departure/arrival associations near the study clock. Select a board flight to seek to its observed boundary and highlight the track. “Near” offers a closer view; Europe restores the opening extent. Drag/pinch or use the zoom controls.
 
+## Compare renderers
+
+Use **Aircraft renderer** to switch between Canvas and an optional Three.js aircraft layer. The clock, view and selections stay in place. [Open Three.js](https://emmettl.github.io/luft/?renderer=three) or [Canvas](https://emmettl.github.io/luft/?renderer=canvas). **Device details** provides resettable timings and **Copy results** for real-device comparisons. See [the comparison guide](docs/COMPARISON.md) for a repeatable Windows Edge test and the prototype’s limits.
+
 ## Follow an airline
 
-Select easyJet, SWISS or British Airways to follow its observed network through the day. The selection applies to moving tracks, airport boards, the daily activity strip and hourly density. It preserves the clock, playback pace and selected airport. Clear it with “All aircraft”.
+Choose from 33 carriers, including easyJet, SWISS, British Airways, Ryanair, Lufthansa, Air France, KLM, Wizz Air and long-haul operators. Options are alphabetical and show the aircraft identities observed during this recorded day. The selection applies to moving tracks, airport boards, the activity timeline and hourly density. It preserves the clock, playback pace and selected airport. Clear it with “All aircraft”.
 
-The filter uses operating callsigns: easyJet groups EZY/EJU/EZS; SWISS uses SWR; British Airways groups BAW/SHT/CFE/EFW. These identifiers were checked against the [FAA airline designator table](https://www.faa.gov/air_traffic/publications/atpubs/cnt_html/chap3_section_3.html). This is not ownership or marketing codeshare matching: unidentified callsigns and partner-operated flights can be missing. The recorded day contains 361 easyJet, 97 SWISS and 264 BA-group aircraft identities within the study window, not their entire worldwide fleets.
+The filter uses operating callsigns, with explicit operator families in [`src/airlines.ts`](src/airlines.ts), checked against the [FAA airline designator table](https://www.faa.gov/air_traffic/publications/atpubs/cnt_html/chap3_section_3.html). This is not ownership or marketing codeshare matching: unidentified callsigns and partner-operated flights can be missing. Counts describe this study window, not entire worldwide fleets. Edelweiss, for example, remains separate from SWISS.
 
-`npm run dev` and `npm run build` first calculate airline summaries from the verified, pinned recorder chunks. Delivery overlap is excluded and aircraft identities are deduplicated. The generated, ignored `src/generated/airlines.json` becomes a separate hashed asset (about 635 kB before HTTP compression). No paid API calls, API keys or recorder changes are needed, and playback still streams only nearby chunks. Run a build before the unit tests on a fresh checkout.
+`npm run dev` and `npm run build` calculate airline summaries from the verified, pinned recorder chunks. Delivery overlap is excluded and aircraft identities are deduplicated. A small generated catalogue supplies the selector counts; individual summaries are separate hashed assets, fetched on selection and cached for reuse. A delayed or failed request keeps the previous map and chart together, and selecting again retries failures. No paid API calls, API keys or recorder changes are needed. Playback still streams only nearby chunks. Run a build before unit tests on a fresh checkout.
+
+The map fills the viewport, with floating controls and a docked timeline. The airport board scrolls within its panel, keeping the clock and playback controls available on a phone. The timeline uses the shared `StudyTimeline` component from Motion Studies web and its geometry/time model from core: bars or a line, gaps, scale, keyboard/touch seeking and time labels use one implementation. Airport selection highlights movements; the activity chart continues to describe the full study window for the selected carrier.
 
 ## Run
 
@@ -55,10 +61,12 @@ The browser verifies each compressed chunk's SHA-256. A short look-ahead cache s
 
 Desktop Chromium and phone-sized WebKit on a Mac passed airport search, the shared card, map selection, fast chunk rollover, missing-data hold/retry and horizontal overflow checks. The browser tests are not a physical iPhone test. Hour density is relative within each selected airline/hour and cannot compare volume between airlines or hours. Reception coverage is uneven; missing observations do not mean no flights.
 
+See the [rendering audit and measurements](docs/RENDERING.md) for shared primitive usage, idle-frame retention, cached land, conservative culling and remaining device-performance questions.
+
 ## Data and code
 
 Aircraft data and this derived database: **ADSB.lol and its contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)**. Raw source URLs/hashes and compilation/reference hashes are included in the downloadable release manifest. The derived database is freely downloadable from the release linked above.
 
-Airport reference: [OurAirports](https://ourairports.com/data/), public domain. Land context: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain, pinned geography SHA-256 in the manifest. Code: MIT. Dependencies on `@motionstudies/core` and `@motionstudies/web` are pinned to `0.1.0-alpha.21`, including the shared airport search, movement board, card and trajectory interpolation.
+Airport reference: [OurAirports](https://ourairports.com/data/), public domain. Land context: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain, pinned geography SHA-256 in the manifest. Code: MIT. Dependencies on `@motionstudies/core` and `@motionstudies/web` are exactly pinned in `package.json`, including the shared airport search, movement board, card, timeline and trajectory interpolation.
 
 Airline marks are bundled SVG assets, displayed in their original colours for identification. See [logo sources and notices](src/assets/airlines/README.md); these marks are separate from the code and aircraft-data licences.

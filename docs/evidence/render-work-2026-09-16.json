@@ -1,0 +1,184 @@
+{
+  "date": "2026-09-16",
+  "method": "Single local before/after run per browser; 1-second paused window, 2.5-second 900x playback from 07:00, Europe then Britain. Canvas command instrumentation adds overhead. p95 is the app rolling draw statistic, not a frame-rate or isolated playback measurement. WebKit is a Mac browser with a phone viewport, not a physical phone.",
+  "before": [
+    {
+      "project": "chromium",
+      "browser": "153.0.8010.12",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "results": [
+        {
+          "view": "Europe",
+          "idleWork": {
+            "clearRect": 30,
+            "lineTo": 1128810,
+            "fill": 81750,
+            "stroke": 81750
+          },
+          "playingWork": {
+            "clearRect": 78,
+            "lineTo": 2992221,
+            "fill": 215880,
+            "stroke": 215880
+          },
+          "diagnostics": "On this device\nMap draw p95: 5.8 ms\n4 / 4 chunks in memory\n15.8 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        },
+        {
+          "view": "Britain",
+          "idleWork": {
+            "clearRect": 31,
+            "lineTo": 1166437,
+            "fill": 84475,
+            "stroke": 84475
+          },
+          "playingWork": {
+            "clearRect": 77,
+            "lineTo": 2954413,
+            "fill": 213200,
+            "stroke": 213200
+          },
+          "diagnostics": "On this device\nMap draw p95: 5.7 ms\n4 / 4 chunks in memory\n29.3 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        }
+      ]
+    },
+    {
+      "project": "webkit-phone",
+      "browser": "26.6",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "results": [
+        {
+          "view": "Europe",
+          "idleWork": {
+            "clearRect": 30,
+            "lineTo": 1128810,
+            "fill": 81750,
+            "stroke": 81750
+          },
+          "playingWork": {
+            "clearRect": 76,
+            "lineTo": 2915513,
+            "fill": 210357,
+            "stroke": 210357
+          },
+          "diagnostics": "On this device\nMap draw p95: 12.0 ms\n4 / 4 chunks in memory\n15.8 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        },
+        {
+          "view": "Britain",
+          "idleWork": {
+            "clearRect": 30,
+            "lineTo": 1128810,
+            "fill": 81750,
+            "stroke": 81750
+          },
+          "playingWork": {
+            "clearRect": 74,
+            "lineTo": 2839067,
+            "fill": 204870,
+            "stroke": 204870
+          },
+          "diagnostics": "On this device\nMap draw p95: 11.0 ms\n4 / 4 chunks in memory\n29.3 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "project": "chromium",
+      "browser": "153.0.8010.12",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "results": [
+        {
+          "view": "Europe",
+          "idleWork": {
+            "clearRect": 0,
+            "drawImage": 0,
+            "lineTo": 0,
+            "stroke": 0,
+            "fill": 0
+          },
+          "playingWork": {
+            "clearRect": 76,
+            "drawImage": 76,
+            "lineTo": 2535796,
+            "stroke": 210354,
+            "fill": 210354
+          },
+          "diagnostics": "On this device\nMap draw p95: 6.0 ms\n4 / 4 chunks in memory\n15.8 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        },
+        {
+          "view": "Britain",
+          "idleWork": {
+            "clearRect": 0,
+            "drawImage": 0,
+            "lineTo": 0,
+            "stroke": 0,
+            "fill": 0
+          },
+          "playingWork": {
+            "clearRect": 76,
+            "drawImage": 76,
+            "lineTo": 1774894,
+            "stroke": 145358,
+            "fill": 145358
+          },
+          "diagnostics": "On this device\nMap draw p95: 5.7 ms\n4 / 4 chunks in memory\n29.3 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        }
+      ]
+    },
+    {
+      "project": "webkit-phone",
+      "browser": "26.6",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "results": [
+        {
+          "view": "Europe",
+          "idleWork": {
+            "clearRect": 0,
+            "drawImage": 0,
+            "lineTo": 0,
+            "stroke": 0,
+            "fill": 0
+          },
+          "playingWork": {
+            "clearRect": 74,
+            "drawImage": 74,
+            "lineTo": 2468883,
+            "stroke": 204806,
+            "fill": 204806
+          },
+          "diagnostics": "On this device\nMap draw p95: 12.0 ms\n4 / 4 chunks in memory\n15.8 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        },
+        {
+          "view": "Britain",
+          "idleWork": {
+            "clearRect": 0,
+            "drawImage": 0,
+            "lineTo": 0,
+            "stroke": 0,
+            "fill": 0
+          },
+          "playingWork": {
+            "clearRect": 73,
+            "drawImage": 73,
+            "lineTo": 1954586,
+            "stroke": 160365,
+            "fill": 160365
+          },
+          "diagnostics": "On this device\nMap draw p95: 11.0 ms\n4 / 4 chunks in memory\n29.3 MiB of track data downloaded this session\nBuffer ready\n\nDraw time excludes decoding, layout and network work. It is not a full frame-rate benchmark. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps."
+        }
+      ]
+    }
+  ]
+}

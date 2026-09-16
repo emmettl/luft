@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {airlineForTrack,matchesAirline} from './airlines'
+import {AIRLINES,airlineForTrack,matchesAirline} from './airlines'
 import {createAirlineAccumulator,accumulateAirlines,finishAirlines} from './airline-aggregate'
 import type {AirTrack} from '@motionstudies/core/domain/air'
 describe('operating callsign families',()=>{
@@ -9,10 +9,21 @@ describe('operating callsign families',()=>{
   expect(airlineForTrack({callsign:' swr18k '})).toBe('swiss')
  })
  it('keeps unknowns and partners separate, and excludes ICAO fallback collisions',()=>{
-  for(const callsign of ['OAW18','SWW21','EDW32','GSWR1','SWR','SWR 123','BA123'])expect(airlineForTrack({callsign})).toBeUndefined()
+  for(const callsign of ['OAW18','SWW21','GSWR1','SWR','SWR 123','BA123'])expect(airlineForTrack({callsign})).toBeUndefined()
   expect(airlineForTrack({callsign:'CFE123',icaoAddress:'cfe123'})).toBeUndefined()
   expect(matchesAirline({callsign:'UNKNOWN'},'all')).toBe(true)
   expect(matchesAirline({callsign:'SWR12'},'easyjet')).toBe(false)
+  expect(airlineForTrack({callsign:'EDW32'})).toBe('edelweiss')
+  expect(matchesAirline({callsign:'EDW32'},'swiss')).toBe(false)
+ })
+ it('maps expanded operating families without ambiguous prefixes',()=>{
+  const prefixes=AIRLINES.flatMap(a=>[...a.prefixes])
+  expect(new Set(prefixes).size).toBe(prefixes.length)
+  for(const callsign of ['RYR123','MAY5K','RYS42','LDA77','RUK345'])expect(airlineForTrack({callsign})).toBe('ryanair')
+  expect(airlineForTrack({callsign:'LHX22'})).toBe('lufthansa')
+  expect(airlineForTrack({callsign:'WMT10'})).toBe('wizz-air')
+  expect(airlineForTrack({callsign:'TVF37'})).toBe('transavia')
+  expect(airlineForTrack({callsign:'UAL901'})).toBe('united')
  })
 })
 const track=(id:string,callsign:string,times:number[]):AirTrack=>({id,icaoAddress:id.split('-')[0],callsign,start:times[0],end:times.at(-1)!,samples:times.map(t=>[t,0,51,10000,300])})

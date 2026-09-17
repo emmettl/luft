@@ -13,6 +13,18 @@ function storage(){
  return {entries,cache,api:{open:vi.fn(async()=>cache)} as unknown as CacheStorage}
 }
 describe('verified compressed disk cache',()=>{
+ it('revalidates reused filenames across days while preserving verified local reuse',async()=>{
+  const old=await fixture(1),next=await fixture(2),disk=storage()
+  next.descriptor.path=old.descriptor.path
+  const first=new TrackDiskCache([old.descriptor],root,async()=>new Response(old.bytes),disk.api)
+  await first.load(old.descriptor)
+  const fetcher=vi.fn(async(_url:RequestInfo|URL,options?:RequestInit)=>new Response(options?.cache==='no-cache'?next.bytes:old.bytes))
+  const refreshed=new TrackDiskCache([next.descriptor],root,fetcher,disk.api)
+  await expect(refreshed.load(next.descriptor)).resolves.toEqual({value:2})
+  await expect(refreshed.load(next.descriptor)).resolves.toEqual({value:2})
+  expect(fetcher).toHaveBeenCalledTimes(1)
+  expect(refreshed.stats.localHits).toBe(1)
+ })
  it('reuses downloaded bytes across seeks and new sessions without fetch',async()=>{
   const {descriptor,bytes}=await fixture(),disk=storage(),fetcher=vi.fn(async()=>new Response(bytes)),first=new TrackDiskCache([descriptor],root,fetcher,disk.api)
   expect(await first.load(descriptor)).toEqual({value:1});expect(await first.load(descriptor)).toEqual({value:1})

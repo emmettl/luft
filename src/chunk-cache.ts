@@ -74,7 +74,9 @@ export class TrackDiskCache {
    }
   }
   signal?.throwIfAborted();this.stats.requests++
-  const response=await this.fetcher(new URL(descriptor.path,this.root),{signal})
+  // Delivery filenames recur each day. Revalidate the browser HTTP cache;
+  // our separate, SHA-keyed disk cache still serves verified bytes directly.
+  const response=await this.fetcher(new URL(descriptor.path,this.root),{signal,cache:'no-cache'})
   if(!response.ok)throw new Error(`Data request failed (${response.status})`)
   const bytes=await response.arrayBuffer();this.stats.responseBytes+=bytes.byteLength
   const value=await decodeVerified<T>(descriptor,bytes);signal?.throwIfAborted()

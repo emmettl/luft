@@ -19,12 +19,12 @@ export type Chunk = {windowStart:number;windowEnd:number;tracks:AirTrack[]}
 export type Land = {features:{geometry:{type:string;coordinates:number[][][]|number[][][][]}}[]}
 const root = new URL(`${import.meta.env.BASE_URL}data/`,location.origin)
 export async function verifiedJson<T>(descriptor:Descriptor,signal?:AbortSignal):Promise<T> {
- const response=await fetch(new URL(descriptor.path,root),{signal})
+ const response=await fetch(new URL(descriptor.path,root),{signal,cache:'no-cache'})
  if(!response.ok) throw new Error(`Data request failed (${response.status})`)
  return decodeVerified<T>(descriptor,await response.arrayBuffer())
 }
 export async function loadRelease() {
- const r=await fetch(new URL('manifest.json',root)); if(!r.ok) throw new Error(`Release unavailable (${r.status})`)
+ const r=await fetch(new URL('manifest.json',root),{cache:'no-cache'}); if(!r.ok) throw new Error(`Release unavailable (${r.status})`)
  const manifestBytes=await r.arrayBuffer()
  const manifest=await decodeVerified<Manifest>({path:'manifest.json',bytes:manifestBytes.byteLength,sha256:dataLock.manifestSha256},manifestBytes)
  if(manifest.kind!=='air-day-release'||manifest.schemaVersion!==1||manifest.chunks.length!==144) throw new Error('Unsupported air release')
@@ -32,7 +32,7 @@ export async function loadRelease() {
  if(snapshots.date!==manifest.date||snapshots.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Filter activity belongs to another release')
  if(countryIndex.source.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Country airports belong to another release')
  if(enrichmentLock.date!==manifest.date||enrichmentLock.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Endpoint enrichment belongs to another release')
- const response=await fetch(new URL(`${import.meta.env.BASE_URL}${enrichmentLock.path}`,location.origin))
+ const response=await fetch(new URL(`${import.meta.env.BASE_URL}${enrichmentLock.path}`,location.origin),{cache:'no-cache'})
  if(!response.ok)throw new Error('Endpoint enrichment unavailable')
  const enrichment=readAirEnrichment(await decodeVerified(enrichmentLock,await response.arrayBuffer()),{date:manifest.date,sourceManifestSha256:dataLock.manifestSha256,tracks:index.aircraft})
  return {manifest,index,land,snapshots,countries:countryIndex.countries,enrichment}

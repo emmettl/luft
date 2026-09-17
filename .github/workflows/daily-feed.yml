@@ -22,7 +22,6 @@ jobs:
       contents: write
     env:
       FEED_DATE: ${{ inputs.date }}
-      FEED_CANDIDATE: ${{ runner.temp }}/luft-daily/candidate
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,6 +32,8 @@ jobs:
           cache: npm
       - run: npm install --global npm@11.19.0
       - run: npm ci
+      - name: Set temporary candidate path
+        run: node --input-type=module -e 'import fs from "node:fs"; fs.appendFileSync(process.env.GITHUB_ENV,`FEED_CANDIDATE=${process.env.RUNNER_TEMP}/luft-daily/candidate\n`)'
       - name: Select completed UTC day
         id: plan
         run: node scripts/daily/plan.mjs

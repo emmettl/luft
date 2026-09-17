@@ -1,0 +1,63 @@
+import {test,expect} from '@playwright/test'
+import {pauseAtStart} from './playback-helpers'
+
+test('shared hashes restore every filter group after loading and reloading',async({page,context})=>{
+ const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message))
+ const hash='#airlines=swiss,easyjet&airports=LSZH,EGLL&routes=EGLL%7CLSZH&countries=CH,GB&continents=EU'
+ await page.goto(`./?renderer=canvas${hash}`);await pauseAtStart(page)
+ const pills=page.getByRole('group',{name:'Selected filters'})
+ await expect(pills.locator('.filter-pill')).toHaveCount(8)
+ for(const label of ['SWISS','easyJet','ZRH','LHR','LHR ↔ ZRH','Switzerland','United Kingdom','Europe']){
+  await expect(pills.getByRole('button',{name:`Remove ${label}`,exact:true})).toHaveCount(1)
+ }
+ const count=await page.locator('.count').innerText(),summary=await page.locator('.selection-summary').innerText()
+ await page.reload();await pauseAtStart(page)
+ await expect(pills.locator('.filter-pill')).toHaveCount(8)
+ await expect(page.locator('.count')).toHaveText(count)
+ await expect(page.locator('.selection-summary')).toHaveText(summary)
+ const shared=await context.newPage();await shared.goto(page.url());await pauseAtStart(shared)
+ await expect(shared.locator('.filter-pill')).toHaveCount(8)
+ await expect(shared.locator('.count')).toHaveText(count)
+ await shared.close()
+ expect(errors).toEqual([])
+})
+
+test('search, insights, removal and clearing update history while preserving query parameters',async({page})=>{
+ await page.goto('./?renderer=canvas');await pauseAtStart(page)
+ const search=page.getByRole('combobox',{name:'Search flights'})
+ await search.fill('SWISS');await page.getByRole('option',{name:/^SWISS/}).click()
+ await expect.poll(()=>new URL(page.url()).hash).toBe('#airlines=swiss')
+ await page.getByRole('button',{name:/Insights Recorded day/}).click()
+ const panel=page.getByRole('region',{name:'Insights',exact:true})
+ await panel.getByRole('button',{name:'Country',exact:true}).click()
+ await panel.getByRole('button',{name:/^Add Switzerland,/}).click()
+ await expect.poll(()=>new URL(page.url()).hash).toBe('#airlines=swiss&countries=CH')
+ await page.getByRole('button',{name:'Remove SWISS',exact:true}).click()
+ await expect.poll(()=>new URL(page.url()).hash).toBe('#countries=CH')
+ await page.goBack()
+ await expect(page.getByRole('button',{name:'Remove SWISS',exact:true})).toBeVisible()
+ await expect(page.locator('.filter-pill')).toHaveCount(2)
+ await page.goBack()
+ await expect(page.locator('.filter-pill')).toHaveCount(1)
+ await expect(page.getByRole('button',{name:'Remove Switzerland',exact:true})).toHaveCount(0)
+ await page.goForward();await expect(page.locator('.filter-pill')).toHaveCount(2)
+ await page.getByRole('button',{name:'Clear all',exact:true}).click()
+ await expect.poll(()=>new URL(page.url()).hash).toBe('')
+ await expect(page.locator('.filter-pill')).toHaveCount(0)
+ expect(new URL(page.url()).search).toBe('?renderer=canvas')
+ await page.goBack();await expect(page.locator('.filter-pill')).toHaveCount(2)
+})
+
+test('manual hash edits ignore invalid values and close an airport board excluded by the new selection',async({page})=>{
+ const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message))
+ await page.goto('./#airports=LSZH');await pauseAtStart(page)
+ await page.getByRole('button',{name:'ZRH board'}).click()
+ await expect(page.getByRole('region',{name:'ZRH airport board'})).toBeVisible()
+ await page.evaluate(()=>{location.hash='airlines=SWISS,swiss,unknown&countries=ch,INVALID&routes=unknown&continents=%E0%A4%A'})
+ await expect(page.locator('.filter-pill')).toHaveCount(2)
+ await expect(page.getByRole('button',{name:'Remove SWISS',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'Remove Switzerland',exact:true})).toBeVisible()
+ await expect(page.getByRole('region',{name:'ZRH airport board'})).toHaveCount(0)
+ await expect(page.locator('.ms-study-timeline__heading')).toContainText('SWISS · Switzerland')
+ expect(errors).toEqual([])
+})

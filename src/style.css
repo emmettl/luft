@@ -48,3 +48,45 @@
 @media(min-width:1000px) and (max-height:620px){.workspace aside{top:8px}}
 
 .filter-display{display:flex;align-items:center;gap:10px;min-height:44px;font-size:12px;cursor:pointer;border-top:1px solid #2d4350}.filter-display input{width:18px;height:18px;margin:0;accent-color:#dac299}.view-settings #filter-display-note{margin:0 0 12px;font-size:10px}
+
+/* Insights shares the selection stack on narrow screens and sits beside it on desktop. */
+.workspace aside{display:flex;flex-direction:column;max-height:calc(100% - 106px - var(--dock-clearance) - 12px)}
+.selection-tools{flex:none;position:relative;z-index:1}
+.insights-panel{display:flex;flex-direction:column;min-height:44px;margin-top:8px;background:#0b1723;border:1px solid #344b59;border-radius:9px;box-shadow:0 8px 32px #0002;overflow:hidden}
+.insights-toggle{display:flex;flex:none;align-items:center;justify-content:space-between;width:100%;border:0;border-radius:0;background:none;padding:10px 14px;text-align:left}
+.insights-toggle>span:first-child{display:flex;align-items:center;gap:9px;font-size:12px;color:#e5c99c}
+.insights-toggle-note{font:9px ui-monospace,monospace;color:#98aebb;display:flex;align-items:center;gap:18px}
+.insights-toggle-note>span{font-size:18px}
+.insights-content{display:flex;flex-direction:column;min-height:0;border-top:1px solid #293e4c;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.insights-categories{display:flex;flex:none;gap:3px;padding:8px 8px 0}
+.insights-categories button{flex:1;padding:6px 4px;font-size:10px;border-color:transparent;background:none}
+.insights-categories button[aria-pressed=true]{background:#25333b;border-color:#8c7856;color:#edce9f}
+.insights-scope{flex:none;padding:10px 14px}
+.insights-scope p:first-child{font:10px ui-monospace,monospace;color:#c0cfd6;margin-bottom:4px}
+.insights-scope p:last-child{font-size:10px;color:#8ba1ae}
+.insights-list{overflow:auto;overscroll-behavior:contain;min-height:44px;max-height:352px;padding:0 8px;scrollbar-width:thin}
+.insight-row{position:relative;isolation:isolate;display:flex;align-items:center;gap:10px;width:100%;min-height:48px;text-align:left;border:0;border-radius:3px;background:none;padding:8px 6px;border-bottom:1px solid #253b4866}
+.insight-row::before{content:'';position:absolute;z-index:-1;left:0;bottom:0;top:0;width:var(--insight-share);background:#29435340}
+.insight-row:hover{background:#263d4b}
+.insight-row[aria-disabled=true]{cursor:default;color:#e5c99c}
+.insight-rank{flex:none;font:9px ui-monospace,monospace;color:#7b929f}
+.insight-name{min-width:0;flex:1;display:grid;gap:3px}
+.insight-name strong{font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.insight-name small{font-size:9px;color:#8fa6b3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.insight-count{font:11px ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.insight-add{width:18px;text-align:center;color:#e5c99c;font-size:16px}
+.insights-note{flex:none;font-size:9px;line-height:1.5;padding:10px 14px;color:#8da3af}
+.insights-empty{padding:12px 6px;font-size:11px}
+@media(max-width:700px){.workspace aside{max-height:calc(100% - 64px - var(--dock-clearance) - 8px)}}
+@media(max-width:999px), (max-height:620px){
+ .workspace aside:has(.insights-panel.is-open) .filter-pills{max-height:52px}
+ .insights-list{flex:none;max-height:none;overflow:visible}
+}
+@media(max-height:620px){.workspace aside{max-height:calc(100% - 64px - var(--dock-clearance) - 8px)}.insights-scope{padding:6px 14px}.insights-note{padding:6px 14px}}
+@media(min-width:1000px){
+ .workspace aside{display:contents;transform:none}
+ .selection-tools{position:absolute;z-index:4;top:20px;left:50%;transform:translateX(-50%);width:350px}
+ .selection-tools:has(.search-popover){z-index:7}
+ .insights-panel{position:absolute;z-index:4;top:106px;right:28px;width:350px;margin:0;max-height:calc(100% - 106px - var(--dock-clearance) - 12px)}
+}
+@media(min-width:1000px) and (max-height:620px){.selection-tools{top:8px}.insights-panel{top:64px;max-height:calc(100% - 64px - var(--dock-clearance) - 8px)}}

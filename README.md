@@ -8,6 +8,10 @@ Use one search for airports, airlines and observed routes. Add several removable
 
 The map, five-minute activity chart, hourly snapshot density and airport boards follow the same selection. Clear individual pills or use **Clear all**. An airport pill or its **board** button opens the shared Motion Studies movement card; closing the board leaves its filter in place. Select a board flight to seek to its observed boundary and highlight the track. Europe restores the continental view. Drag/pinch or use the zoom controls.
 
+Open the collapsible **Insights** panel to rank carriers, airports, countries or continents by unique aircraft across the recorded day. Click a row to add it to the selection. Counts respect the other filter groups, leaving alternatives in the active group available to add. Countries and continents can also be searched; both refer to an observed departure or arrival airport, not the aircraft's current position or registration. Each aircraft is counted once per row, so rows can overlap. Coverage is shown beneath the list; unknown associations are excluded.
+
+Selections are saved in the URL hash, so copying the address shares every active filter. For example, `#airlines=swiss&airports=LSZH&countries=CH` restores SWISS, Zürich and Switzerland. Reloading preserves the selection; Back and Forward step through filter changes. Clear all removes the hash. Unknown or outdated filter values are ignored.
+
 On phones, a compact search and pills replace separate selectors. Airport boards open separately and scroll above the playback dock. **View** contains Motion / Hour density, Bars / Line and the renderer choice. All primary playback and map controls have 44px touch targets; the shared alpha.23 timeline keeps its native keyboard and touch scrubbing.
 
 ## Compare renderers
@@ -21,6 +25,8 @@ Search all 33 carriers, including easyJet, SWISS, British Airways, Ryanair, Luft
 Routes come from distinct pairs of known observed endpoints. They cover both directions and exclude same-airport pairs. Selecting several airports does not imply a route between them: select a route pill for that. When a flight connects two selected airports, its arrival colour takes precedence.
 
 `npm run dev` and `npm run build` derive a compact snapshot index from verified, pinned recorder chunks. It stores only observations exactly on five-minute ticks, their canonical track IDs and half-degree cells. Delivery overlap is excluded. The browser derives each combined selection locally and deduplicates aircraft identities at each tick. No additional track downloads or paid API requests occur when changing filters. The snapshot asset is about 5 MB JSON (1.6 MB gzip); it loads with the reference index. Existing airline summaries remain a build-time cross-check of the snapshot counts.
+
+The same build step derives airport country and continent metadata from the bundled OurAirports CSV, verifying it and the airport index against the pinned manifest. It joins reference identifiers to the recorded endpoints without inventing missing route evidence. Geography does not depend on a live lookup.
 
 **Hour density now counts five-minute snapshots**, rather than every raw observation. It uses 0.5° cells, normalized within each selection/hour. Short flights can occur between ticks; an empty snapshot bin is not evidence of no traffic throughout the interval. Brightness cannot compare volumes across selections or hours. Playback itself continues to use the detailed observations and shared interpolation/gap rules.
 

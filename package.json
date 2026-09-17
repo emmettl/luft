@@ -1,6 +1,6 @@
 {
   "name": "luft",
-  "version": "0.3.8",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "LUFT — observed flights over Europe, a Motion Studies research edition",
@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "data:fetch": "node scripts/fetch-data.mjs",
-    "data:airlines": "node scripts/build-airline-data.mjs",
+    "data:airlines": "node scripts/build-airline-data.mjs && node scripts/build-geography.mjs",
     "predev": "npm run data:airlines",
     "prebuild": "npm run data:airlines",
     "data:land": "node scripts/build-land.mjs"

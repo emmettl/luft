@@ -1,15 +1,24 @@
 import {AIRLINES,airlineForTrack,type AirlineId} from './airlines'
 import type {Index} from './data'
+import {airportGeography,type AirportGeography} from './geography'
 
-export type Selection={airports:string[];airlines:AirlineId[];routes:string[]}
-export const EMPTY_SELECTION:Selection={airports:[],airlines:[],routes:[]}
+export type Selection={airports:string[];airlines:AirlineId[];routes:string[];countries:string[];continents:string[]}
+export const EMPTY_SELECTION:Selection={airports:[],airlines:[],routes:[],countries:[],continents:[]}
 type Track=Index['aircraft'][number]
 export type SnapshotIndex={date:string;sourceManifestSha256:string;tracks:[string,number[]][]}
 export const routeKey=(track:Pick<Track,'origin'|'destination'>)=>track.origin?.icao&&track.destination?.icao&&track.origin.icao!==track.destination.icao?[track.origin.icao,track.destination.icao].sort().join('|'):undefined
-export function matchesSelection(track:Track,selection:Selection){
+export function endpointRegions(track:Track,field:'country'|'continent',geography:AirportGeography=airportGeography){
+ return [...new Set([track.origin,track.destination].flatMap(endpoint=>{
+  const value=endpoint&&(field==='continent'?endpoint.continent??geography[endpoint.icao]?.continent:geography[endpoint.icao]?.country)
+  return value?[value]:[]
+ }))]
+}
+export function matchesSelection(track:Track,selection:Selection,geography:AirportGeography=airportGeography){
  return (!selection.airlines.length||selection.airlines.includes(airlineForTrack(track)!))&&
   (!selection.airports.length||selection.airports.some(code=>track.origin?.icao===code||track.destination?.icao===code))&&
-  (!selection.routes.length||selection.routes.includes(routeKey(track)??''))
+  (!selection.routes.length||selection.routes.includes(routeKey(track)??''))&&
+  (!selection.countries.length||endpointRegions(track,'country',geography).some(code=>selection.countries.includes(code)))&&
+  (!selection.continents.length||endpointRegions(track,'continent',geography).some(code=>selection.continents.includes(code)))
 }
 export function selectionActivity(tracks:readonly Track[],snapshots:SnapshotIndex){
  const identities=new Map(tracks.map(track=>[track.id,track.icaoAddress??track.id]))

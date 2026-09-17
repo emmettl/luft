@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test'
 import {pauseAtStart} from './playback-helpers'
 
-test('insights adds every category to the shared selection and survives collapse',async({page})=>{
+test('insights toggles every category in the shared selection and survives collapse',async({page})=>{
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message))
  await page.goto('./');await pauseAtStart(page)
  const panel=page.getByRole('region',{name:'Insights',exact:true})
@@ -10,14 +10,27 @@ test('insights adds every category to the shared selection and survives collapse
  const first=panel.locator('.insight-row').first()
  const carrier=await first.locator('strong').innerText()
  await first.click();await expect(page.getByRole('button',{name:`Remove ${carrier}`,exact:true})).toBeVisible()
- await expect(first).toHaveAttribute('aria-disabled','true')
+ await expect(first).toHaveAttribute('aria-pressed','true')
+ await first.click()
+ await expect(page.getByRole('button',{name:`Remove ${carrier}`,exact:true})).toHaveCount(0)
+ await expect(first).toHaveAttribute('aria-pressed','false')
+ expect(new URL(page.url()).hash).toBe('')
+ await first.press('Enter')
+ await expect(first).toHaveAttribute('aria-pressed','true')
  const second=panel.locator('.insight-row').nth(1),other=await second.locator('strong').innerText()
  await second.click();await expect(page.getByRole('button',{name:`Remove ${other}`,exact:true})).toBeVisible()
  for(const category of ['Country','Continent','Airport']){
   await panel.getByRole('button',{name:category,exact:true}).click()
   const row=panel.locator('.insight-row').first(),label=await row.locator('strong').innerText()
+  const previousHash=new URL(page.url()).hash
   await row.click();await expect(page.getByRole('button',{name:`Remove ${label}`,exact:true})).toBeVisible()
   await expect(page.locator('.ms-study-timeline__heading')).toContainText(label)
+  await expect(row).toHaveAttribute('aria-pressed','true')
+  await row.click()
+  await expect(page.getByRole('button',{name:`Remove ${label}`,exact:true})).toHaveCount(0)
+  await expect(row).toHaveAttribute('aria-pressed','false')
+  expect(new URL(page.url()).hash).toBe(previousHash)
+  await row.click()
  }
  await expect(page.getByRole('group',{name:'Selected filters'}).locator('.filter-pill')).toHaveCount(5)
  const bounds=await panel.boundingBox(),dock=await page.locator('footer').boundingBox()

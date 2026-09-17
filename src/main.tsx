@@ -10,6 +10,8 @@ import {MapGesture} from './map-gesture'
 import {ChunkStore,loadRelease,type Airport,type Chunk} from './data'
 import {FlightSearch} from './FlightSearch'
 import {Insights} from './InsightsPanel'
+import {Moments} from './MomentsPanel'
+import type {Moment} from './moments'
 import {countryLabel,continentLabel} from './geography'
 import {selectionOptions,selectionFromHash,selectionHash,endpointFromHash} from './selection-url'
 import {EndpointFilters} from './EndpointFilters'
@@ -153,7 +155,7 @@ function Study({release}:{release:Release}) {
   return()=>{stopped=true;rendererGeneration.current++;cancelAnimationFrame(raf);e.generation++;store.dispose();map.current?.dispose();document.removeEventListener('visibilitychange',visibility);document.removeEventListener('keydown',keydown);motionPreference.removeEventListener('change',motionChanged)}
  },[store,land,index,labelRanks,countries])
  useEffect(()=>{
-  const elements=[...document.querySelectorAll('.study>header .identity,.study>header .date,.selection-tools,.insights-panel,.map-caption,.view-controls,.study>footer,.airport-panel,.view-settings,.diagnostics,.flight-caption,.endpoint-panel')]
+  const elements=[...document.querySelectorAll('.study>header .identity,.study>header .date,.selection-tools,.context-panels,.map-caption,.view-controls,.study>footer,.airport-panel,.view-settings,.diagnostics,.flight-caption,.endpoint-panel')]
   const update=()=>{const origin=canvas.current?.getBoundingClientRect();if(!origin)return;map.current?.setLabelObstacles(elements.map(element=>{const r=element.getBoundingClientRect();return {left:r.left-origin.left-6,right:r.right-origin.left+6,top:r.top-origin.top-6,bottom:r.bottom-origin.top+6}}))}
   const observer=new ResizeObserver(update);elements.forEach(element=>observer.observe(element));update()
   return()=>observer.disconnect()
@@ -164,6 +166,11 @@ function Study({release}:{release:Release}) {
   setAirport(a);setBoardOpen(true)
  }
  const choose=(a:Airport)=>{setAirport(a);setBoardOpen(true)}
+ const exploreMoment=(moment:Moment)=>{
+  engine.current.playing=false;engine.current.mode='motion';setMode('motion');setFlight('');setBoardOpen(false);setSettings(false);setEndpointsOpen(false)
+  if(map.current){map.current.selectedFlight=undefined;map.current.transitionTo(map.current.studyBounds)}
+  void seek(moment.time)
+ }
  const selectFlight=(id:string)=>{const track=index.aircraft.find(t=>t.id===id);if(!track)return;setFlight(id);map.current!.selectedFlight=id;engine.current.playing=false
   const endpoint=track.origin?.icao===airport?.icao?track.origin:track.destination?.icao===airport?.icao?track.destination:undefined
   void seek(Math.min(track.end,Math.max(track.start,endpoint?.time??engine.current.time)))
@@ -200,7 +207,10 @@ function Study({release}:{release:Release}) {
     {selectionLabel&&<p className="selection-summary">{selectedCountries.length>0&&<span className="country-summary">{countryIds.size} airports highlighted · </span>}{summary.aircraft.toLocaleString()} aircraft observed · matching selection{dimOthers&&mode==='motion'?' · other flights dimmed':''}</p>}
     {selectedAirports.length>0&&<div className="board-launchers">{selectedAirports.map(a=><button key={a.icao} onClick={()=>{if(airport?.icao===a.icao&&boardOpen)setBoardOpen(false);else choose(a)}} aria-expanded={boardOpen&&airport?.icao===a.icao}>{a.iata||a.icao} board <span aria-hidden="true">{boardOpen&&airport?.icao===a.icao?'−':'+'}</span></button>)}</div>}
     </div>
-    <Insights index={insightIndex} countries={countries} selection={selection} onChange={changeSelection}/>
+    <div className="context-panels">
+     <Moments bins={summary.bins} filtered={!!selectionLabel} onJump={exploreMoment}/>
+     <Insights index={insightIndex} countries={countries} selection={selection} onChange={changeSelection}/>
+    </div>
    </aside>
    {airport&&boardOpen&&<section className="airport-panel" aria-label={`${airport.iata||airport.icao} airport board`}><div className="panel-heading"><span>Observed movements</span><button aria-label="Close airport board" onClick={()=>setBoardOpen(false)}>×</button></div><AirportHeroCard key={airport.id} airport={{...airport,city:cityLabel(airport),iata:airport.iata||airport.icao}} departures={board.departures} arrivals={board.arrivals} study={{time:ui.time,windowStart:0,windowEnd:86400}} dateLabel={`${manifest.date} · UTC`} density="compact" maxRows={6} labels={{time:'Seen',emptyDepartures:'No observed departures in this selection.',emptyArrivals:'No observed arrivals in this selection.'}} note="Airport associations inferred from observed trace endpoints. Times are observations, not schedules; blank routes remain unknown." selectedFlightId={flight} onSelectFlight={selectFlight}/><p className="association-note">{board.departures.length} outbound / {board.arrivals.length} inbound associations in this selection.{!airport.hasObservedMovements?' No endpoint evidence for this airport; this does not mean no flights.':''}</p></section>}
 

@@ -149,7 +149,7 @@ button{transition:background 160ms,border-color 160ms,color 160ms}
 .insight-row{position:relative;isolation:isolate;display:flex;align-items:center;gap:10px;width:100%;min-height:48px;text-align:left;border:0;border-radius:3px;background:none;padding:8px 6px;border-bottom:1px solid #253b4866}
 .insight-row::before{content:'';position:absolute;z-index:-1;left:0;bottom:0;top:0;width:var(--insight-share);background:#29435340}
 .insight-row:hover{background:#263d4b}
-.insight-row[aria-disabled=true]{cursor:default;color:#e5c99c}
+.insight-row[aria-pressed=true]{color:#e5c99c}
 .insight-rank{flex:none;font:9px ui-monospace,monospace;color:#7b929f}
 .insight-name{min-width:0;flex:1;display:grid;gap:3px}
 .insight-name strong{font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

@@ -9,20 +9,20 @@ const categories:Record<InsightCategory,string>={airlines:'Carrier',airports:'Ai
 export function Insights({index,countries,selection,onChange}:{index:Index;countries:Country[];selection:Selection;onChange:(value:Selection)=>void}){
  const [open,setOpen]=useState(false),[category,setCategory]=useState<InsightCategory>('airlines')
  const stats=useMemo(()=>open?buildInsights(index,selection,category):undefined,[index,selection,category,open])
- const add=(id:string)=>{
-  if(selection[category].includes(id as AirlineId))return
-  onChange({...selection,[category]:[...selection[category],id]})
+ const toggle=(id:string)=>{
+  const values=selection[category]
+  onChange({...selection,[category]:values.includes(id as AirlineId)?values.filter(value=>value!==id):[...values,id]})
  }
  return <section className={`insights-panel${open?' is-open':''}`} aria-label="Insights">
   <button className="insights-toggle" aria-expanded={open} aria-controls="insights-content" onClick={()=>setOpen(!open)}><span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M3 13V8m5 5V3m5 10V6" strokeWidth="2"/></svg>Insights</span><span className="insights-toggle-note">Recorded day <span aria-hidden="true">{open?'−':'+'}</span></span></button>
   {open&&stats&&<div id="insights-content" className="insights-content">
    <div className="insights-categories" role="group" aria-label="Group insights by">{(Object.keys(categories) as InsightCategory[]).map(key=><button key={key} aria-pressed={category===key} onClick={()=>setCategory(key)}>{categories[key]}</button>)}</div>
-   <div className="insights-scope"><p>Unique aircraft · full recorded day</p><p>Counts match other filter groups. Click + to add.</p></div>
+   <div className="insights-scope"><p>Unique aircraft · full recorded day</p><p>Counts match other filter groups. Click a row to toggle.</p></div>
    <div className="insights-list" aria-label={`${categories[category]} statistics`} key={category}>
     {stats.rows.map((row,i)=>{
      const label=category==='countries'?countries.find(country=>country.code===row.id)?.name||row.label:row.label
      const selected=selection[category].includes(row.id as AirlineId)
-     return <button key={row.id} className="insight-row" aria-label={`${selected?'Selected':'Add'} ${label}, ${row.count.toLocaleString()} aircraft`} aria-disabled={selected} onClick={()=>add(row.id)} style={{'--insight-share':`${row.count/(stats.rows[0]?.count||1)*100}%`} as CSSProperties}>
+     return <button key={row.id} className="insight-row" aria-label={`${selected?'Remove':'Add'} ${label}, ${row.count.toLocaleString()} aircraft`} aria-pressed={selected} onClick={()=>toggle(row.id)} style={{'--insight-share':`${row.count/(stats.rows[0]?.count||1)*100}%`} as CSSProperties}>
       <span className="insight-rank" aria-hidden="true">{String(i+1).padStart(2,'0')}</span><span className="insight-name"><strong>{label}</strong>{row.detail&&<small>{row.detail}</small>}</span><span className="insight-count">{row.count.toLocaleString()}</span><span className="insight-add" aria-hidden="true">{selected?'✓':'+'}</span>
      </button>
     })}

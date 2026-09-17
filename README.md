@@ -20,11 +20,17 @@ Aircraft have luminous heads and fading three-minute trails; selecting a flight 
 
 **View → Day / night shading** adds a subtle night boundary beneath the aircraft, calculated from the recorded date and UTC clock using [NOAA's approximate solar equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF). It is astronomical context, not weather or observed light. Hour density uses the middle of its selected hour. The small shading raster is cached by projection and recorded minute; paused frames remain retained. The clock, grouped map controls and fine champagne timeline playhead share the same instrument-inspired styling.
 
-Open the collapsible **Insights** panel to rank carriers, airports, countries or continents by unique aircraft across the recorded day. Click a row to add it to the selection. Counts respect the other filter groups, leaving alternatives in the active group available to add. Countries and continents can also be searched; both refer to an observed departure or arrival airport, not the aircraft's current position or registration. Each aircraft is counted once per row, so rows can overlap. Coverage is shown beneath the list; unknown associations are excluded.
+Open the collapsible **Insights** panel to rank carriers, airports, countries or continents by unique aircraft across the recorded day. Click a row to add it to the selection; click it again to remove it. Counts respect the other filter groups, leaving alternatives in the active group available to add. Countries and continents can also be searched; both refer to an observed departure or arrival airport, not the aircraft's current position or registration. Each aircraft is counted once per row, so rows can overlap. Coverage is shown beneath the list; unknown associations are excluded.
 
 Selections are saved in the URL hash, so copying the address shares every active filter. For example, `#airlines=swiss&airports=LSZH&countries=CH` restores SWISS, Zürich and Switzerland. Reloading preserves the selection; Back and Forward step through filter changes. Clear all removes the hash. Unknown or outdated filter values are ignored.
 
 The same build step derives airport country and continent metadata from the bundled OurAirports CSV, verifying it and the airport index against the pinned manifest. It joins reference identifiers to the recorded endpoints without inventing missing route evidence. Geography does not depend on a live lookup.
+
+## Moments
+
+Open **Moments** for a short tour of the recorded day: its quietest and busiest five-minute snapshots, and the largest rise and fall between snapshots one hour apart. Moments follow all active filters, including endpoint filters, and count distinct aircraft using the same snapshot series as the timeline. Ties use the earliest time; flat or empty selections show fewer moments. Comparisons stay within the recorded day and never wrap across midnight.
+
+Choose **Explore** to pause at that moment in Motion view and return to the study-wide map, keeping your filters. For a rise or fall, the jump starts the one-hour interval. Press **Play** to watch it unfold. Counts describe observations, not scheduled flights or proof of empty skies; reception gaps can affect them.
 
 ## Compare renderers
 

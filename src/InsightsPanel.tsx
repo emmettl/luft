@@ -1,11 +1,12 @@
 import {useMemo,useState,type CSSProperties} from 'react'
 import type {Index} from './data'
+import type {Country} from './countries'
 import type {AirlineId} from './airlines'
 import type {Selection} from './filters'
 import {buildInsights,type InsightCategory} from './insights'
 
 const categories:Record<InsightCategory,string>={airlines:'Carrier',airports:'Airport',countries:'Country',continents:'Continent'}
-export function Insights({index,selection,onChange}:{index:Index;selection:Selection;onChange:(value:Selection)=>void}){
+export function Insights({index,countries,selection,onChange}:{index:Index;countries:Country[];selection:Selection;onChange:(value:Selection)=>void}){
  const [open,setOpen]=useState(false),[category,setCategory]=useState<InsightCategory>('airlines')
  const stats=useMemo(()=>open?buildInsights(index,selection,category):undefined,[index,selection,category,open])
  const add=(id:string)=>{
@@ -19,9 +20,10 @@ export function Insights({index,selection,onChange}:{index:Index;selection:Selec
    <div className="insights-scope"><p>Unique aircraft · full recorded day</p><p>Counts match other filter groups. Click + to add.</p></div>
    <div className="insights-list" aria-label={`${categories[category]} statistics`} key={category}>
     {stats.rows.map((row,i)=>{
+     const label=category==='countries'?countries.find(country=>country.code===row.id)?.name||row.label:row.label
      const selected=selection[category].includes(row.id as AirlineId)
-     return <button key={row.id} className="insight-row" aria-label={`${selected?'Selected':'Add'} ${row.label}, ${row.count.toLocaleString()} aircraft`} aria-disabled={selected} onClick={()=>add(row.id)} style={{'--insight-share':`${row.count/(stats.rows[0]?.count||1)*100}%`} as CSSProperties}>
-      <span className="insight-rank" aria-hidden="true">{String(i+1).padStart(2,'0')}</span><span className="insight-name"><strong>{row.label}</strong>{row.detail&&<small>{row.detail}</small>}</span><span className="insight-count">{row.count.toLocaleString()}</span><span className="insight-add" aria-hidden="true">{selected?'✓':'+'}</span>
+     return <button key={row.id} className="insight-row" aria-label={`${selected?'Selected':'Add'} ${label}, ${row.count.toLocaleString()} aircraft`} aria-disabled={selected} onClick={()=>add(row.id)} style={{'--insight-share':`${row.count/(stats.rows[0]?.count||1)*100}%`} as CSSProperties}>
+      <span className="insight-rank" aria-hidden="true">{String(i+1).padStart(2,'0')}</span><span className="insight-name"><strong>{label}</strong>{row.detail&&<small>{row.detail}</small>}</span><span className="insight-count">{row.count.toLocaleString()}</span><span className="insight-add" aria-hidden="true">{selected?'✓':'+'}</span>
      </button>
     })}
     {!stats.rows.length&&<p className="insights-empty">No known {categories[category].toLowerCase()} associations match these filters. Remove a filter to explore more.</p>}

@@ -1,6 +1,7 @@
 import {expect,it} from 'vitest'
 import {EMPTY_SELECTION,type Selection} from './filters'
-import {selectionFromHash,selectionHash,type SelectionOptions} from './selection-url'
+import {endpointFromHash,selectionFromHash,selectionHash,type SelectionOptions} from './selection-url'
+import {EMPTY_ENDPOINT_FILTER} from './endpoint-filters'
 
 const options:SelectionOptions={airlines:new Set(['swiss','easyjet']),airports:new Set(['LSZH','EGLL']),routes:new Set(['EGLL|LSZH']),countries:new Set(['CH','GB']),continents:new Set(['EU'])}
 it('round-trips multiple values in every selection group',()=>{
@@ -17,4 +18,10 @@ it('tolerates malformed fragments and leaves empty selection arrays untouched',(
  expect(selectionFromHash('#countries=%E0%A4%A&routes=%&airlines=,,,',options)).toEqual(EMPTY_SELECTION)
  expect(selectionFromHash('#about',options)).toEqual(EMPTY_SELECTION)
  expect(EMPTY_SELECTION).toEqual({airlines:[],airports:[],routes:[],countries:[],continents:[]})
+})
+it('round-trips directional endpoint filters and explicit candidate inclusion',()=>{
+ const endpoint={side:'origin' as const,continent:'NA' as const,airport:'KJFK',includeCandidates:true}
+ const hash=selectionHash({...EMPTY_SELECTION,airlines:['swiss']},endpoint)
+ expect(endpointFromHash(hash,{...options,endpointAirports:new Set(['KJFK'])})).toEqual(endpoint)
+ expect(endpointFromHash('#endpoint-side=invalid&endpoint-continent=XX&endpoint-airport=FAKE&candidates=invalid',options)).toEqual(EMPTY_ENDPOINT_FILTER)
 })

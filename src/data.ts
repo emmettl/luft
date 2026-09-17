@@ -1,7 +1,11 @@
 import landUrl from './assets/europe-land-50m.json?url'
+import countriesUrl from './assets/europe-countries-50m.json?url'
+import type {CountryIndex} from './countries'
 import snapshotsUrl from './generated/snapshots.json?url'
 import type {SnapshotIndex} from './filters'
 import dataLock from '../data-release.json'
+import enrichmentLock from '../enrichment-release.json'
+import {readAirEnrichment} from '@motionstudies/core/air-enrichment'
 import {decodeVerified,TrackDiskCache} from './chunk-cache'
 import type { AirTrack } from '@motionstudies/core/domain/air'
 import type { AirSearchTrack } from '@motionstudies/core/air-search'
@@ -21,11 +25,17 @@ export async function verifiedJson<T>(descriptor:Descriptor,signal?:AbortSignal)
 }
 export async function loadRelease() {
  const r=await fetch(new URL('manifest.json',root)); if(!r.ok) throw new Error(`Release unavailable (${r.status})`)
- const manifest:Manifest=await r.json()
+ const manifestBytes=await r.arrayBuffer()
+ const manifest=await decodeVerified<Manifest>({path:'manifest.json',bytes:manifestBytes.byteLength,sha256:dataLock.manifestSha256},manifestBytes)
  if(manifest.kind!=='air-day-release'||manifest.schemaVersion!==1||manifest.chunks.length!==144) throw new Error('Unsupported air release')
- const [index,land,snapshots]=await Promise.all([verifiedJson<Index>(manifest.index),fetch(landUrl).then(async r=>{if(!r.ok)throw new Error('Land context unavailable');return await r.json() as Land}),fetch(snapshotsUrl).then(async r=>{if(!r.ok)throw new Error('Filter activity unavailable');return await r.json() as SnapshotIndex})])
+ const [index,land,snapshots,countryIndex]=await Promise.all([verifiedJson<Index>(manifest.index),fetch(landUrl).then(async r=>{if(!r.ok)throw new Error('Land context unavailable');return await r.json() as Land}),fetch(snapshotsUrl).then(async r=>{if(!r.ok)throw new Error('Filter activity unavailable');return await r.json() as SnapshotIndex}),fetch(countriesUrl).then(async r=>{if(!r.ok)throw new Error('Country context unavailable');return await r.json() as CountryIndex})])
  if(snapshots.date!==manifest.date||snapshots.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Filter activity belongs to another release')
- return {manifest,index,land,snapshots}
+ if(countryIndex.source.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Country airports belong to another release')
+ if(enrichmentLock.date!==manifest.date||enrichmentLock.sourceManifestSha256!==dataLock.manifestSha256)throw new Error('Endpoint enrichment belongs to another release')
+ const response=await fetch(new URL(`${import.meta.env.BASE_URL}${enrichmentLock.path}`,location.origin))
+ if(!response.ok)throw new Error('Endpoint enrichment unavailable')
+ const enrichment=readAirEnrichment(await decodeVerified(enrichmentLock,await response.arrayBuffer()),{date:manifest.date,sourceManifestSha256:dataLock.manifestSha256,tracks:index.aircraft})
+ return {manifest,index,land,snapshots,countries:countryIndex.countries,enrichment}
 }
 export class ChunkStore {
  cache=new Map<number,Chunk>()

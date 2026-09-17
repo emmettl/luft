@@ -9,7 +9,8 @@ test('renderer switches preserve clock, carrier and airport; GPU draws and falls
  await add(page,'SWISS')
  await expect(page.locator('.selection-summary')).toContainText('97 aircraft')
  await add(page,'ZRH');await page.getByRole('button',{name:'ZRH board'}).click()
- await expect(page.locator('.count')).toHaveText(/^[1-9]\d* aircraft.*SWISS/)
+ // Wait for the pinned 07:00 SWISS/ZRH selection, not the previous carrier-only frame.
+ await expect(page.locator('.count')).toHaveText('24 aircraft · SWISS · ZRH')
  const count=await page.locator('.count').innerText()
  await page.getByRole('button',{name:'Close airport board'}).click()
  await page.getByRole('button',{name:'View settings',exact:true}).click()

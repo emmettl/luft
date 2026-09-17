@@ -75,3 +75,20 @@ filter emphasis. The texture size, upload bytes, retained geometry and draw-call
 structure are unchanged. Unit and browser pixel checks cover pauses, gaps skipped
 at fast playback, chunk continuity, seeking, reduced motion, filter dimming and
 both renderers.
+
+## Selectable airport hierarchy (0.3.9)
+
+Airport labels use the published `@motionstudies/core/map-labels` API from
+alpha.25: selection priority, retained visibility, observed-activity rank, distance,
+zoom admission and collision allocation. The same helpers now serve the shared
+station renderer. LUFT ranks airports once from deduplicated endpoint associations
+in its pinned day; this is an observation hierarchy, not airport traffic statistics.
+
+The map caches layouts by projection, selected airport codes and UI obstacles.
+Labels are accessible DOM buttons above either aircraft renderer, with 44px hit
+areas included in collision allocation. More airports become eligible on zoom;
+selected airports bypass normal rank admission. Labels avoid the header, search,
+clock, map controls, dock and open panels. A tap or keyboard activation adds the
+airport to the existing multiselect filters and opens its board. Dragging from a
+label uses the same map gesture controller as the canvas and does not select it.
+Playback ticks do not rebuild the label layout.

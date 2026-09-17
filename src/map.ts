@@ -5,6 +5,11 @@ import type {AircraftPainter} from './aircraft-painter'
 import {trackDirection} from './retained-trails'
 import {ACCENT_SECONDS,MovementAccents} from './movement-accents'
 import {VisibilityFades} from './visibility-fades'
+import {layoutAirportLabels,type AirportLabel} from './airport-labels'
+import type {MapLabelBox} from '@motionstudies/core/map-labels'
+import {DaylightLayer} from './daylight'
+import {countryAirportIds,type Country} from './countries'
+import type {FlightRoute} from './flight-route'
 export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
@@ -24,6 +29,34 @@ export class AirMap {
  renderedFrames=0
  private painter?:AircraftPainter
  private baseKey=''
+ private flightRoute?:FlightRoute
+ setFlightRoute(route?:FlightRoute){this.flightRoute=route;this.baseKey='';this.revision++}
+ frameFlightRoute(){
+  if(!this.flightRoute||this.flightRoute.id!==this.selectedFlight)return
+  const points=this.flightRoute.segments.flat()
+  if(!points.length)return
+  let west=Infinity,east=-Infinity,south=Infinity,north=-Infinity
+  for(const [,x,y] of points){west=Math.min(west,x);east=Math.max(east,x);south=Math.min(south,y);north=Math.max(north,y)}
+  const frameBottom=this.height-Math.min(this.height*.4,this.bottomClearance),frameHeight=frameBottom-this.topClearance
+  const wideControls=this.labelObstacles.filter(box=>box.top<this.height*.45&&box.right-box.left>this.width*.55)
+  const top=Math.max(this.topClearance,...wideControls.map(box=>box.bottom))+12,bottom=frameBottom-12
+  const scale=Math.min(Math.max(44,this.width-48)/(.62*Math.max(4,east-west+2)),Math.max(60,bottom-top)/Math.max(3,north-south+2))
+  const viewWidth=this.width/(.62*scale),viewHeight=frameHeight/scale,centre=(north+south)/2
+  const viewNorth=centre+((top+bottom)/2-this.topClearance)/scale
+  this.transitionTo({west:(west+east-viewWidth)/2,east:(west+east+viewWidth)/2,south:viewNorth-viewHeight,north:viewNorth})
+ }
+ private paintFlightRoute(){
+  if(!this.flightRoute||this.flightRoute.id!==this.selectedFlight)return
+  const ctx=this.ctx;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath()
+  for(const segment of this.flightRoute.segments)segment.forEach(([,lon,lat],i)=>{const [x,y]=this.project(lon,lat);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)})
+  ctx.strokeStyle='#e6cfa51a';ctx.lineWidth=5;ctx.stroke()
+  ctx.strokeStyle='#e6cfa59e';ctx.lineWidth=1.15;ctx.stroke()
+  // Small open rings mark the first and last actual observations, not inferred airports.
+  const first=this.flightRoute.segments[0]?.[0],last=this.flightRoute.segments.at(-1)?.at(-1)
+  ctx.strokeStyle='#efd9b3b3';ctx.lineWidth=1
+  for(const point of [first,last])if(point){const [x,y]=this.project(point[1],point[2]);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.stroke()}
+  ctx.restore()
+ }
  setPainter(painter?:AircraftPainter){this.painter?.dispose();this.painter=painter;this.revision++;this.baseKey='';this.resetMeasurements()}
  gpuStats(){return this.painter?.stats()}
  private readonly ctx:CanvasRenderingContext2D
@@ -31,7 +64,28 @@ export class AirMap {
  private readonly observer:ResizeObserver
  private readonly frame=new PausedVehicleFrame()
  private readonly extents=new WeakMap<AirTrack,Extent>()
- private readonly defaultLabels:Airport[]
+ airportLabels:AirportLabel[]=[]
+ private labelKey=''
+ private labelObstacles:readonly MapLabelBox[]=[]
+ private obstacleKey=''
+ private countries:readonly Country[]=[]
+ private selectedCountries:readonly string[]=[]
+ private countryAirportCodes:ReadonlySet<string>=new Set()
+ private countryAirports:readonly Airport[]=[]
+ private geographyDirty=false
+ setCountries(countries:readonly Country[],selected:readonly string[]=[]){
+  if(countries===this.countries&&selected.join('|')===this.selectedCountries.join('|'))return
+  this.countries=countries;this.selectedCountries=[...selected]
+  this.countryAirportCodes=countryAirportIds(countries,selected)
+  this.countryAirports=this.airports.filter(a=>this.countryAirportCodes.has(a.icao))
+  this.geographyDirty=true;this.labelKey='';this.baseKey='';this.revision++
+ }
+ setLabelObstacles(boxes:readonly MapLabelBox[]){const key=JSON.stringify(boxes);if(key!==this.obstacleKey){this.obstacleKey=key;this.labelObstacles=boxes;this.revision++}}
+ private updateAirportLabels(codes:readonly string[]){
+  const key=`${this.projection}:${codes.join('|')}:${this.obstacleKey}`;if(key===this.labelKey)return;this.labelKey=key
+  this.airportLabels=layoutAirportLabels(this.airports,this.labelOptions?.ranks??new Map(this.airports.map((a,i)=>[a.icao,i])),new Set(codes),new Set(this.airportLabels.map(label=>label.airport.icao)),this.view.north-this.view.south,this.width,this.height,(lon,lat)=>this.project(lon,lat),this.labelObstacles,this.countryAirportCodes)
+  this.labelOptions?.onChange(this.airportLabels)
+ }
  private resizeDirty=true;private dpr=0;private revision=0
  private projection='';private inputs?:{tracks:AirTrack[];airport?:Airport|readonly Airport[];mode:string;cells:number[][];selected?:string;matchingIds?:ReadonlySet<string>}
  private accentTracks:AirTrack[]=[]
@@ -41,17 +95,31 @@ export class AirMap {
  private readonly accentContext?:CanvasRenderingContext2D
  private accentsPainted=false
  private accentsEnabled=true
- setMotionEffectsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;this.resetMotionEffects()}}
+ private daylight?:DaylightLayer
+ private daylightEnabled=true
+ private camera?:{from:View;to:View;started:number}
+ setDaylightEnabled(enabled:boolean){if(this.daylightEnabled!==enabled){this.daylightEnabled=enabled;this.baseKey='';this.revision++}}
+ setMotionEffectsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;if(!enabled&&this.camera){this.view=this.camera.to;this.camera=undefined}this.resetMotionEffects()}}
+ transitionTo(to:View){
+  if(!this.accentsEnabled){this.view={...to};this.camera=undefined;return}
+  this.camera={from:{...this.view},to:{...to},started:performance.now()}
+ }
+ private advanceCamera(now:number){
+  if(!this.camera)return
+  const {from,to,started}=this.camera,t=Math.min(1,(now-started)/700),ease=t*t*(3-2*t)
+  for(const key of ['west','south','east','north'] as const)this.view[key]=from[key]+(to[key]-from[key])*ease
+  if(t===1)this.camera=undefined
+ }
  resetMotionEffects(){this.fades.reset();this.resetAccents();this.revision++}
  resetAccents(){this.movements.reset();if(this.accentsPainted)this.accentContext?.clearRect(0,0,this.width,this.height);this.accentsPainted=false}
- constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement){
+ constructor(readonly canvas:HTMLCanvasElement,readonly land:Land,readonly airports:Airport[],readonly studyBounds:View=EUROPE,private readonly accentCanvas?:HTMLCanvasElement,date?:string,private readonly labelOptions?:{ranks:ReadonlyMap<string,number>;onChange:(labels:AirportLabel[])=>void}){
+  if(date)this.daylight=new DaylightLayer(date)
   this.accentContext=accentCanvas?.getContext('2d')??undefined
   this.view={...studyBounds}
   this.ctx=canvas.getContext('2d')!
-  this.defaultLabels=airports.filter(a=>['LHR','CDG','FRA','AMS','MAD','FCO','ZRH','IST'].includes(a.iata))
   this.observer=new ResizeObserver(()=>{this.resizeDirty=true});this.observer.observe(canvas)
  }
- dispose(){this.resetMotionEffects();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
+ dispose(){this.resetMotionEffects();this.daylight?.dispose();this.painter?.dispose();this.observer.disconnect();this.backdrop.width=0;this.backdrop.height=0}
  private fit(){
   const dpr=Math.min(2,devicePixelRatio||1)
   if(this.resizeDirty||this.dpr!==dpr){
@@ -64,7 +132,7 @@ export class AirMap {
    if(this.accentCanvas){this.accentCanvas.width=this.canvas.width;this.accentCanvas.height=this.canvas.height;this.accentContext?.setTransform(dpr,0,0,dpr,0,0)}
   }
   const key=[this.width,this.height,this.view.west,this.view.south,this.view.east,this.view.north].join(':')
-  if(key===this.projection)return
+  if(key===this.projection){if(this.geographyDirty)this.paintLand();return}
   const frameHeight=Math.max(1,this.height-this.topClearance-Math.min(this.height*.4,this.bottomClearance))
   this.scale=Math.min(this.width/((this.view.east-this.view.west)*.62),frameHeight/(this.view.north-this.view.south))
   this.left=(this.width-(this.view.east-this.view.west)*.62*this.scale)/2
@@ -72,11 +140,28 @@ export class AirMap {
   this.projection=key;this.revision++;this.paintLand()
  }
  private paintLand(){
+  this.geographyDirty=false
   this.backdrop.width=this.canvas.width;this.backdrop.height=this.canvas.height
   const ctx=this.backdrop.getContext('2d')!;ctx.setTransform(this.dpr,0,0,this.dpr,0,0)
   ctx.fillStyle='#11202b';ctx.strokeStyle='#283640';ctx.lineWidth=.6;ctx.beginPath()
   for(const f of this.land.features){const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates as number[][][]]:f.geometry.coordinates as number[][][][];for(const poly of polys)for(const ring of poly){ring.forEach(([lon,lat],i)=>{const [x,y]=this.project(lon,lat);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});ctx.closePath()}}
   ctx.fill('evenodd');ctx.stroke()
+  const countryPath=(country:Country)=>{for(const polygon of country.polygons)for(const ring of polygon){ring.forEach(([lon,lat],i)=>{const [x,y]=this.project(lon,lat);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});ctx.closePath()}}
+  // Paint the selected fill and all boundaries into the retained geographic base.
+  for(const country of this.countries)if(this.selectedCountries.includes(country.code)){
+   ctx.beginPath();countryPath(country);ctx.fillStyle='#ddc49112';ctx.fill('evenodd')
+  }
+  if(this.countries.length){ctx.beginPath();for(const country of this.countries)countryPath(country);ctx.strokeStyle='#a4bcc52b';ctx.lineWidth=.55;ctx.stroke()}
+  for(const country of this.countries)if(this.selectedCountries.includes(country.code)){
+   ctx.beginPath();countryPath(country);ctx.strokeStyle='#dfc99855';ctx.lineWidth=.8;ctx.stroke()
+  }
+  // Every referenced airport gets a marker, even where its text label cannot fit.
+  for(const airport of this.countryAirports){
+   const [x,y]=this.project(airport.longitude,airport.latitude)
+   if(x<0||x>this.width||y<0||y>this.height)continue
+   ctx.strokeStyle='#ead2a6a6';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.stroke()
+   ctx.fillStyle='#f0d9af';ctx.beginPath();ctx.arc(x,y,1.3,0,Math.PI*2);ctx.fill()
+  }
   // Fade only the context outside the recorded area. Cache these masks with
   // the land so neither aircraft renderer adds compositing work per frame.
   const [left,top]=this.project(this.studyBounds.west,this.studyBounds.north)
@@ -97,14 +182,32 @@ export class AirMap {
  project(lon:number,lat:number){return [this.left+(lon-this.view.west)*.62*this.scale,this.top+(this.view.north-lat)*this.scale]}
  zoom(factor:number){
   if(!Number.isFinite(factor)||factor<=0)return
+  this.camera=undefined
   const bounds=this.studyBounds,aspect=(this.view.east-this.view.west)/(this.view.north-this.view.south)
   const w=Math.min(bounds.east-bounds.west,(bounds.north-bounds.south)*aspect,Math.max(2,(this.view.east-this.view.west)*factor)),h=w/aspect
   const cx=Math.max(bounds.west+w/2,Math.min(bounds.east-w/2,(this.view.west+this.view.east)/2))
   const cy=Math.max(bounds.south+h/2,Math.min(bounds.north-h/2,(this.view.south+this.view.north)/2))
   this.view={west:cx-w/2,east:cx+w/2,south:cy-h/2,north:cy+h/2}
  }
- pan(dx:number,dy:number){const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
- focus(airport:Airport){this.view={west:airport.longitude-8,east:airport.longitude+8,south:airport.latitude-5,north:airport.latitude+5}}
+ pan(dx:number,dy:number){this.camera=undefined;const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
+ focus(airport:Airport){this.transitionTo({west:airport.longitude-8,east:airport.longitude+8,south:airport.latitude-5,north:airport.latitude+5})}
+ frameAirports(airports:readonly Airport[]){
+  if(!airports.length){this.transitionTo(this.studyBounds);return}
+  const west=Math.min(...airports.map(a=>a.longitude))-8,east=Math.max(...airports.map(a=>a.longitude))+8
+  const south=Math.min(...airports.map(a=>a.latitude))-5,north=Math.max(...airports.map(a=>a.latitude))+5
+  this.transitionTo({west:Math.max(this.studyBounds.west,west),east:Math.min(this.studyBounds.east,east),south:Math.max(this.studyBounds.south,south),north:Math.min(this.studyBounds.north,north)})
+ }
+ frameCountries(codes:readonly string[]){
+  const selected=this.countries.filter(c=>codes.includes(c.code)),points=selected.flatMap(c=>c.polygons.flatMap(p=>p[0]))
+  if(!points.length){this.transitionTo(this.studyBounds);return}
+  const bounds=this.studyBounds
+  let west=bounds.east,east=bounds.west,south=bounds.north,north=bounds.south
+  for(const [x,y] of points){west=Math.min(west,x);east=Math.max(east,x);south=Math.min(south,y);north=Math.max(north,y)}
+  west=Math.max(bounds.west,west);east=Math.min(bounds.east,east);south=Math.max(bounds.south,south);north=Math.min(bounds.north,north)
+  if(west>=east||south>=north){this.transitionTo(bounds);return}
+  const padX=Math.max(2,(east-west)*.12),padY=Math.max(1.5,(north-south)*.12)
+  this.transitionTo({west:Math.max(bounds.west,west-padX),east:Math.min(bounds.east,east+padX),south:Math.max(bounds.south,south-padY),north:Math.min(bounds.north,north+padY)})
+ }
  private paintAccents(tracks:AirTrack[],time:number,clock:number){
   const ctx=this.accentContext;if(!ctx)return
   const accents=this.movements.advance(tracks,time,clock)
@@ -132,8 +235,9 @@ export class AirMap {
    this.top+(this.view.north-Math.max(extent.north,p.latitude))*this.scale > this.height+4
  }
  draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0,matchingIds?:ReadonlySet<string>) {
-  const started=performance.now();this.fit()
-  const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],codes=selectedAirports.map(a=>a.icao),hasAirports=codes.length>0
+  const started=performance.now();this.advanceCamera(started);this.fit()
+  const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],explicitCodes=selectedAirports.map(a=>a.icao),codes=[...new Set([...explicitCodes,...this.countryAirportCodes])],hasAirports=codes.length>0
+  this.updateAirportLabels(explicitCodes)
   const previous=this.inputs
   if(!previous||previous.tracks!==tracks||previous.airport!==airport||previous.mode!==mode||previous.cells!==cells||previous.selected!==this.selectedFlight||previous.matchingIds!==matchingIds){
    this.revision++;this.inputs={tracks,airport,mode,cells,selected:this.selectedFlight,matchingIds}
@@ -144,8 +248,9 @@ export class AirMap {
   if(!this.frame.needsUpdate(false,frameTime,this.revision))return this.counts
   const ctx=this.ctx,{width:w,height:h}=this,painter=this.painter
   if(mode==='motion'&&this.accentsEnabled)this.fades.begin(time)
-  const baseKey=`${this.projection}:${codes.join('|')}:${mode}`,repaintBase=!painter||mode==='density'||baseKey!==this.baseKey
-  if(repaintBase){ctx.clearRect(0,0,w,h);ctx.drawImage(this.backdrop,0,0,w,h);this.baseKey=baseKey}
+  const daylightTime=mode==='density'?Math.floor(time/3600)*3600+1800:time
+  const baseKey=`${this.projection}:${codes.join('|')}:${mode}:${this.daylightEnabled?Math.floor(daylightTime/60):'off'}:${this.selectedFlight??''}:${this.flightRoute?.id??''}`,repaintBase=!painter||mode==='density'||baseKey!==this.baseKey
+  if(repaintBase){ctx.clearRect(0,0,w,h);ctx.drawImage(this.backdrop,0,0,w,h);if(this.daylightEnabled)this.daylight?.draw(ctx,w,h,{west:this.view.west,north:this.view.north,left:this.left,top:this.top,scale:this.scale},daylightTime);if(mode==='motion')this.paintFlightRoute();this.baseKey=baseKey}
   this.points=[]
   if(painter){if(mode==='density')painter.clear();else painter.begin(w,h,this.dpr,{xScale:.62*this.scale,yScale:-this.scale,xOffset:this.left-this.view.west*.62*this.scale,yOffset:this.top+this.view.north*this.scale},time)}
   const setup=performance.now()-started;let sampling=0,geometry=0,submission=0
@@ -178,19 +283,24 @@ export class AirMap {
     const opacity=dimmed||(hasAirports&&!d&&!selected)?.14:1,width=selected?2:d?1.4:.65,radius=selected?3.5:d?2.3:1.2
     ctx.globalAlpha=opacity*fade;ctx.strokeStyle=colour;ctx.lineWidth=width;ctx.beginPath()
     const start=after(track.samples,time-180),end=after(track.samples,time)
+    if(end>start){
+     const tail=track.samples[start],tx=this.left+(tail[1]-this.view.west)*.62*this.scale,ty=this.top+(this.view.north-tail[2])*this.scale
+     if(Math.hypot(x-tx,y-ty)>1){const trail=ctx.createLinearGradient(tx,ty,x,y);trail.addColorStop(0,`${colour}12`);trail.addColorStop(.45,`${colour}70`);trail.addColorStop(1,`${colour}e0`);ctx.strokeStyle=trail}
+    }
     for(let i=start;i<end;i++){const sample=track.samples[i],sx=this.left+(sample[1]-this.view.west)*.62*this.scale,sy=this.top+(this.view.north-sample[2])*this.scale
      if(i>start&&sample[0]-track.samples[i-1][0]<=45){ctx.lineTo(sx,sy)}else ctx.moveTo(sx,sy)
     }
     if(end>start&&time-track.samples[end-1][0]<=45){ctx.lineTo(x,y)}
-    ctx.stroke();ctx.fillStyle=colour;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
+    ctx.stroke();ctx.fillStyle=colour
+    if(selected){for(const [size,alpha] of [[11,.05],[7,.12]] as const){ctx.globalAlpha=opacity*fade*alpha;ctx.beginPath();ctx.arc(x,y,size,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=opacity*fade}
+    ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill()
+    ctx.fillStyle='#f0faff';ctx.globalAlpha=opacity*fade*.6;ctx.beginPath();ctx.arc(x,y,radius*.45,0,Math.PI*2);ctx.fill()
     if(!dimmed&&x>=0&&x<=w&&y>=0&&y<=h)this.points.push({x,y,track})
    }
    ctx.globalAlpha=1
    geometry=performance.now()-geometryStarted
   }
   if(mode==='motion'&&this.accentsEnabled)this.fades.end()
-  ctx.font='10px ui-monospace, monospace'
-  for(const a of repaintBase?(hasAirports?selectedAirports:this.defaultLabels):[]){const [x,y]=this.project(a.longitude,a.latitude);if(x<15||x>w-30||y<15||y>h-10)continue;ctx.strokeStyle=hasAirports?'#efe0bd':'#809096';ctx.lineWidth=.8;ctx.strokeRect(x-3,y-3,6,6);ctx.fillStyle=hasAirports?'#eee0c4':'#91a1a9';ctx.fillText(hasAirports?`${a.iata||a.icao} · ${cityLabel(a)}`:a.iata,x+8,y+3)}
   if(mode==='motion'&&this.accentsEnabled)this.paintAccents(this.accentTracks,time,accentClock)
   else this.resetAccents()
   this.renderedFrames++;this.durations.push(performance.now()-started);if(this.durations.length>300)this.durations.shift()

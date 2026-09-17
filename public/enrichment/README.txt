@@ -1,0 +1,1 @@
+Endpoint metadata: ADSB.lol contributors (ODbL 1.0), VRS standing-data (CC0), OurAirports (public domain). Observed endpoints take precedence. Corroborated associations are not independently confirmed flights. No trajectories or event times are added. See reports/ for observations, source URLs, hashes and policy.

@@ -33,17 +33,21 @@ void main(){
  vec2 from=project(sampleFrom.xy),to=project(positionTo.z<studyTime?positionTo.xy:head.xy);
  vec2 d=to-from,normal=vec2(-d.y,d.x)/max(length(d),.0001);
  float width=emphasis>1.5?2.:emphasis>.5?1.4:.65;
+ float age=clamp((mix(sampleFrom.z,min(positionTo.z,studyTime),position.x)-(studyTime-180.))/180.,0.,1.);
+ alpha*=mix(.07,.88,age*age);
+ width*=mix(.55,1.,age);
  gl_Position=visible?screen(mix(from,to,position.x)+normal*position.y*width*.5):vec4(2.,2.,0.,1.);
 }`
 const pointVertex=vertexBase+`
 uniform float pixelRatio;
 void main(){
  vec4 head=state(position.x);style(head,position.y);
+ ink=mix(ink,vec3(.94,.98,1.),.22);
  gl_Position=head.z>0.?screen(project(head.xy)):vec4(2.,2.,0.,1.);
- gl_PointSize=(emphasis>1.5?3.5:emphasis>.5?2.3:1.2)*2.*pixelRatio;
+ gl_PointSize=(emphasis>1.5?11.:emphasis>.5?2.3:1.2)*2.*pixelRatio;
 }`
 const fragment=`varying vec3 ink;varying float alpha;void main(){gl_FragColor=vec4(ink,alpha);}`
-const pointFragment=`varying vec3 ink;varying float alpha;void main(){float d=length(gl_PointCoord-.5);float edge=1.-smoothstep(.5-fwidth(d),.5,d);if(edge<=0.)discard;gl_FragColor=vec4(ink,alpha*edge);}`
+const pointFragment=`uniform float emphasis;varying vec3 ink;varying float alpha;void main(){float d=length(gl_PointCoord-.5);float radius=emphasis>1.5?.159:.5;float core=1.-smoothstep(radius-fwidth(d),radius,d);float glow=emphasis>1.5?.18*pow(max(0.,1.-d*2.),2.):0.;float edge=max(core,glow);if(edge<=0.)discard;gl_FragColor=vec4(ink,alpha*edge);}`
 export class GpuAircraftPainter implements AircraftPainter {
  private readonly canvas=document.createElement('canvas')
  private readonly renderer:THREE.WebGLRenderer

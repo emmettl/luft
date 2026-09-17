@@ -61,3 +61,26 @@ test('manual hash edits ignore invalid values and close an airport board exclude
  await expect(page.locator('.ms-study-timeline__heading')).toContainText('SWISS · Switzerland')
  expect(errors).toEqual([])
 })
+
+test('directional endpoint filters remain shareable alongside insights selections',async({page})=>{
+ await page.goto('./#airlines=swiss&endpoint-side=origin&endpoint-continent=NA&candidates=true');await pauseAtStart(page)
+ await page.getByRole('button',{name:'Destination and continent filters',exact:true}).click()
+ await expect(page.getByLabel('Endpoint direction',{exact:true})).toHaveValue('origin')
+ await expect(page.getByLabel('Endpoint continent',{exact:true})).toHaveValue('NA')
+ await expect(page.getByRole('checkbox',{name:'Include candidate-only labels'})).toBeChecked()
+ await page.getByRole('checkbox',{name:'Include candidate-only labels'}).uncheck()
+ expect(new URL(page.url()).hash).not.toContain('candidates')
+ await page.getByRole('button',{name:'Close endpoint filters'}).click()
+ await page.getByRole('button',{name:'Clear all',exact:true}).click()
+ await expect.poll(()=>new URL(page.url()).hash).toBe('')
+ await page.goBack()
+ await expect(page.locator('.ms-study-timeline__heading')).toContainText('From North America')
+ await expect(page.getByRole('button',{name:'Remove SWISS',exact:true})).toBeVisible()
+})
+
+test('a shared country with no observed airports preserves the empty selection result',async({page})=>{
+ await page.goto('./#countries=LI');await pauseAtStart(page)
+ await expect(page.getByRole('button',{name:'Remove Liechtenstein',exact:true})).toBeVisible()
+ await expect(page.locator('.count')).toHaveText(/^0 aircraft/)
+ await expect(page.locator('.country-summary')).toContainText('0 airports highlighted')
+})

@@ -2,7 +2,7 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest'
 import {AirMap,BRITAIN,EUROPE} from './map'
 import type {AirTrack} from '@motionstudies/core/domain/air'
 import type {Airport,Land} from './data'
-const context=()=>({...Object.fromEntries(['setTransform','clearRect','drawImage','beginPath','moveTo','lineTo','closePath','fill','stroke','arc','fillRect','strokeRect','fillText'].map(key=>[key,vi.fn()])),createLinearGradient:vi.fn(()=>({addColorStop:vi.fn()}))}) as unknown as CanvasRenderingContext2D
+const context=()=>({...Object.fromEntries(['save','restore','setTransform','clearRect','drawImage','beginPath','moveTo','lineTo','closePath','fill','stroke','arc','fillRect','strokeRect','fillText'].map(key=>[key,vi.fn()])),createLinearGradient:vi.fn(()=>({addColorStop:vi.fn()}))}) as unknown as CanvasRenderingContext2D
 let ctx:CanvasRenderingContext2D,backdrop:CanvasRenderingContext2D,canvas:HTMLCanvasElement,resize:()=>void
 const disconnect=vi.fn()
 beforeEach(()=>{
@@ -18,6 +18,54 @@ const land={features:[{geometry:{type:'Polygon',coordinates:[[[0,40],[5,45],[10,
 const track=(id:string,samples:AirTrack['samples']):AirTrack=>({id,callsign:id,start:samples[0][0],end:samples.at(-1)![0],samples})
 const tracks=[track('visible',[[0,0,50,10000,300],[10,1,50,10000,300]])]
 const cells=[[0,50,3]]
+it('draws the whole selected observed route with separate gaps and removes it on clear',()=>{
+ const map=new AirMap(canvas,land,[]),empty:AirTrack[]=[]
+ map.selectedFlight='visible'
+ map.setFlightRoute({id:'visible',segments:[[[0,-4,50],[10,0,50]],[[100,4,50],[110,8,50]]]})
+ map.draw(empty,5,undefined,'motion',cells)
+ expect(ctx.moveTo).toHaveBeenCalledTimes(2);expect(ctx.lineTo).toHaveBeenCalledTimes(2)
+ expect(ctx.arc).toHaveBeenCalledTimes(2)
+ const paints=vi.mocked(ctx.stroke).mock.calls.length
+ map.draw(empty,5,undefined,'motion',cells);expect(ctx.stroke).toHaveBeenCalledTimes(paints)
+ map.selectedFlight=undefined;map.draw(empty,5,undefined,'motion',cells)
+ expect(ctx.stroke).toHaveBeenCalledTimes(paints)
+ map.dispose()
+})
+it('caches country borders and repaints fills and all airport markers on a paused selection change',()=>{
+ const airports=[{icao:'TEST',latitude:50,longitude:0,iata:'TST',city:'Test',hasObservedMovements:false}] as Airport[]
+ const map=new AirMap(canvas,land,airports),countries=[{code:'XX',name:'Test',aliases:[],airports:['TEST'],polygons:[[[[-1,49],[1,49],[1,51],[-1,51],[-1,49]]]]}]
+ map.setCountries(countries);map.draw(tracks,5,undefined,'motion',cells)
+ const basePaints=vi.mocked(backdrop.stroke).mock.calls.length
+ map.draw(tracks,6,undefined,'motion',cells);expect(backdrop.stroke).toHaveBeenCalledTimes(basePaints)
+ map.setCountries(countries,['XX']);map.draw(tracks,6,undefined,'motion',cells)
+ expect(backdrop.arc).toHaveBeenCalledWith(expect.any(Number),expect.any(Number),4,0,Math.PI*2)
+ expect(map.airportLabels[0]?.highlighted).toBe(true)
+ map.setCountries(countries,[]);map.draw(tracks,6,undefined,'motion',cells)
+ expect(map.airportLabels).toEqual([])
+ map.setMotionEffectsEnabled(false);map.frameCountries(['XX'])
+ expect(map.view.west).toBeLessThan(-1);expect(map.view.east).toBeGreaterThan(1)
+ map.setCountries([{...countries[0],code:'OUT',polygons:[[[[60,10],[65,10],[65,15],[60,10]]]]}]);map.frameCountries(['OUT'])
+ expect(map.view).toEqual(EUROPE)
+ map.dispose()
+})
+it('animates camera changes while paused, settles, and cancels on gestures or reduced motion',()=>{
+ const now=vi.spyOn(performance,'now').mockReturnValue(0),map=new AirMap(canvas,land,[])
+ map.draw(tracks,5,undefined,'motion',cells)
+ map.transitionTo(BRITAIN)
+ now.mockReturnValue(350);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.view.west).toBeCloseTo((EUROPE.west+BRITAIN.west)/2)
+ now.mockReturnValue(700);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.view).toEqual(BRITAIN)
+ const frames=map.renderedFrames
+ now.mockReturnValue(900);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.renderedFrames).toBe(frames)
+ map.transitionTo(EUROPE);map.pan(10,0);const manual={...map.view}
+ now.mockReturnValue(2000);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.view).toEqual(manual)
+ map.setMotionEffectsEnabled(false);map.transitionTo(EUROPE)
+ expect(map.view).toEqual(EUROPE)
+ now.mockRestore();map.dispose()
+})
 it('retains paused frames, caches land and redraws changed time, data, view, size and selection',()=>{
  const map=new AirMap(canvas,land,[])
  const first=map.draw(tracks,5,undefined,'motion',cells)

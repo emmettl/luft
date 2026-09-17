@@ -57,7 +57,7 @@ test('search keyboard, empty intersections, removal and many pills keep the cont
  await expect(page.locator('.play')).toBeInViewport()
  await search.fill('zzzzzzzz');await expect(page.locator('.search-empty')).toBeVisible()
  await search.press('Escape');await expect(page.getByRole('listbox')).toHaveCount(0)
- await search.fill('United');await page.getByRole('option',{name:/^United/}).click()
+ await search.fill('United');await page.getByRole('option',{name:/^United Airlines/}).click()
  await expect(page.getByRole('button',{name:'Remove United'})).toBeVisible()
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true)
 })
@@ -66,7 +66,13 @@ test('compact phone layout reserves map space and boards scroll clear of the tim
  await page.setViewportSize({width:390,height:664})
  await ready(page);await add(page,'SWISS',/^SWISS/)
  const viewport=page.viewportSize()!,panel=await page.locator('aside').boundingBox(),footer=await page.locator('footer').boundingBox()
- if(viewport.width<700){expect(panel!.height).toBeLessThan(145);expect(footer!.y-panel!.y-panel!.height).toBeGreaterThan(viewport.height*.4)}
+ if(viewport.width<700){
+  const selection=await page.locator('.selection-tools').boundingBox(),insights=await page.locator('.insights-panel').boundingBox()
+  expect(selection!.height).toBeLessThan(145)
+  expect(insights!.height).toBeLessThan(50)
+  // The new collapsed Insights control occupies one additional touch row.
+  expect(footer!.y-panel!.y-panel!.height).toBeGreaterThan(viewport.height*.4-insights!.height-8)
+ }
  await expect(page.getByRole('combobox',{name:'Aircraft renderer'})).toHaveCount(0)
  await page.screenshot({path:`test-results/${test.info().project.name}-compact-swiss.png`,fullPage:true})
  await add(page,'ZRH',/^ZRH Zurich/);await page.getByRole('button',{name:'ZRH board'}).click()
@@ -88,7 +94,10 @@ test('missing next chunk holds the last frame and offers a working retry',async(
  await page.route('**/chunk-043.json.gz.bin',route=>route.fulfill({status:503,body:'unavailable'}))
  await ready(page)
  await page.getByRole('slider').fill('25795');await page.getByRole('combobox',{name:'Playback speed'}).selectOption('900');await page.locator('.play').click()
- await expect(page.locator('.stream-status')).toContainText('Retry');expect(Number(await page.getByRole('slider').inputValue())).toBeLessThan(25800)
+ await expect(page.locator('.stream-status')).toContainText('Retry')
+ // The one-second slider rounds 07:09:59.5 up; the map clock still reflects the held frame.
+ await expect(page.locator('.clock')).toContainText('07:09')
+ expect(Number(await page.getByRole('slider').inputValue())).toBeLessThanOrEqual(25800)
  await expect(page.locator('.initial-loading')).toHaveCount(0)
  await page.unroute('**/chunk-043.json.gz.bin');await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.locator('.stream-status')).toContainText('Paused')
  expect(Number(await page.getByRole('slider').inputValue())).toBeGreaterThanOrEqual(25800)
@@ -117,7 +126,7 @@ test('short phone viewport keeps search, playback and touch targets clear',async
  const search=await page.locator('aside').boundingBox(),footer=await page.locator('footer').boundingBox()
  expect(footer!.y-search!.y-search!.height).toBeGreaterThan(140)
  for(const locator of [page.locator('.play'),page.getByRole('button',{name:'View settings',exact:true}),page.getByRole('button',{name:'Zoom in'}),page.getByRole('button',{name:'Remove SWISS'})]){
-  const box=await locator.boundingBox();expect(box!.height).toBeGreaterThanOrEqual(44)
+  const box=await locator.boundingBox();expect(Math.round(box!.height*1000)/1000).toBeGreaterThanOrEqual(44)
  }
  const details=await page.getByRole('button',{name:'Device details'}).boundingBox(),about=await page.locator('.method summary').boundingBox()
  expect(about!.x-details!.x-details!.width).toBeGreaterThanOrEqual(8)

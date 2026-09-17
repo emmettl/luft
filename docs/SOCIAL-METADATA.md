@@ -1,5 +1,7 @@
 # Social preview and page metadata
 
+The canonical production URL is `https://motionstudies.app/luft/`.
+
 `index.html` includes the canonical production URL, description, Open Graph and
 Twitter large-image cards, image dimensions and alt text, icons, crawler metadata,
 and WebSite structured data. These are static so link-preview crawlers do not need
@@ -23,6 +25,7 @@ Review the resulting PNG before committing it. If the production URL changes,
 update the canonical, Open Graph, Twitter and structured-data URLs in
 `index.html`, along with `public/sitemap.xml`.
 
-GitHub Pages hosts this project at `/luft/`; crawler rules in a project-level
+Motion Studies and the GitHub Pages mirror serve this project at `/luft/`.
+Both builds point to the Motion Studies canonical URL. Crawler rules in a project-level
 `/luft/robots.txt` would not govern the site, so crawler preferences live in the
 page's robots meta tag. No installable PWA or offline support is claimed.

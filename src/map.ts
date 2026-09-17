@@ -9,6 +9,7 @@ import {layoutAirportLabels,type AirportLabel} from './airport-labels'
 import type {MapLabelBox} from '@motionstudies/core/map-labels'
 import {DaylightLayer} from './daylight'
 import {countryAirportIds,type Country} from './countries'
+import type {FlightRoute} from './flight-route'
 export const cityLabel=(airport:Airport)=>airport.city.split(/[,(]/)[0].trim()
 export type View={west:number;south:number;east:number;north:number}
 export const EUROPE:View={west:-25,south:34,east:45,north:72}
@@ -28,6 +29,34 @@ export class AirMap {
  renderedFrames=0
  private painter?:AircraftPainter
  private baseKey=''
+ private flightRoute?:FlightRoute
+ setFlightRoute(route?:FlightRoute){this.flightRoute=route;this.baseKey='';this.revision++}
+ frameFlightRoute(){
+  if(!this.flightRoute||this.flightRoute.id!==this.selectedFlight)return
+  const points=this.flightRoute.segments.flat()
+  if(!points.length)return
+  let west=Infinity,east=-Infinity,south=Infinity,north=-Infinity
+  for(const [,x,y] of points){west=Math.min(west,x);east=Math.max(east,x);south=Math.min(south,y);north=Math.max(north,y)}
+  const frameBottom=this.height-Math.min(this.height*.4,this.bottomClearance),frameHeight=frameBottom-this.topClearance
+  const wideControls=this.labelObstacles.filter(box=>box.top<this.height*.45&&box.right-box.left>this.width*.55)
+  const top=Math.max(this.topClearance,...wideControls.map(box=>box.bottom))+12,bottom=frameBottom-12
+  const scale=Math.min(Math.max(44,this.width-48)/(.62*Math.max(4,east-west+2)),Math.max(60,bottom-top)/Math.max(3,north-south+2))
+  const viewWidth=this.width/(.62*scale),viewHeight=frameHeight/scale,centre=(north+south)/2
+  const viewNorth=centre+((top+bottom)/2-this.topClearance)/scale
+  this.transitionTo({west:(west+east-viewWidth)/2,east:(west+east+viewWidth)/2,south:viewNorth-viewHeight,north:viewNorth})
+ }
+ private paintFlightRoute(){
+  if(!this.flightRoute||this.flightRoute.id!==this.selectedFlight)return
+  const ctx=this.ctx;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath()
+  for(const segment of this.flightRoute.segments)segment.forEach(([,lon,lat],i)=>{const [x,y]=this.project(lon,lat);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)})
+  ctx.strokeStyle='#e6cfa51a';ctx.lineWidth=5;ctx.stroke()
+  ctx.strokeStyle='#e6cfa59e';ctx.lineWidth=1.15;ctx.stroke()
+  // Small open rings mark the first and last actual observations, not inferred airports.
+  const first=this.flightRoute.segments[0]?.[0],last=this.flightRoute.segments.at(-1)?.at(-1)
+  ctx.strokeStyle='#efd9b3b3';ctx.lineWidth=1
+  for(const point of [first,last])if(point){const [x,y]=this.project(point[1],point[2]);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.stroke()}
+  ctx.restore()
+ }
  setPainter(painter?:AircraftPainter){this.painter?.dispose();this.painter=painter;this.revision++;this.baseKey='';this.resetMeasurements()}
  gpuStats(){return this.painter?.stats()}
  private readonly ctx:CanvasRenderingContext2D
@@ -220,8 +249,8 @@ export class AirMap {
   const ctx=this.ctx,{width:w,height:h}=this,painter=this.painter
   if(mode==='motion'&&this.accentsEnabled)this.fades.begin(time)
   const daylightTime=mode==='density'?Math.floor(time/3600)*3600+1800:time
-  const baseKey=`${this.projection}:${codes.join('|')}:${mode}:${this.daylightEnabled?Math.floor(daylightTime/60):'off'}`,repaintBase=!painter||mode==='density'||baseKey!==this.baseKey
-  if(repaintBase){ctx.clearRect(0,0,w,h);ctx.drawImage(this.backdrop,0,0,w,h);if(this.daylightEnabled)this.daylight?.draw(ctx,w,h,{west:this.view.west,north:this.view.north,left:this.left,top:this.top,scale:this.scale},daylightTime);this.baseKey=baseKey}
+  const baseKey=`${this.projection}:${codes.join('|')}:${mode}:${this.daylightEnabled?Math.floor(daylightTime/60):'off'}:${this.selectedFlight??''}:${this.flightRoute?.id??''}`,repaintBase=!painter||mode==='density'||baseKey!==this.baseKey
+  if(repaintBase){ctx.clearRect(0,0,w,h);ctx.drawImage(this.backdrop,0,0,w,h);if(this.daylightEnabled)this.daylight?.draw(ctx,w,h,{west:this.view.west,north:this.view.north,left:this.left,top:this.top,scale:this.scale},daylightTime);if(mode==='motion')this.paintFlightRoute();this.baseKey=baseKey}
   this.points=[]
   if(painter){if(mode==='density')painter.clear();else painter.begin(w,h,this.dpr,{xScale:.62*this.scale,yScale:-this.scale,xOffset:this.left-this.view.west*.62*this.scale,yOffset:this.top+this.view.north*this.scale},time)}
   const setup=performance.now()-started;let sampling=0,geometry=0,submission=0

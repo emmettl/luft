@@ -19,7 +19,8 @@ export function layoutAirportLabels(airports:readonly Airport[],ranks:ReadonlyMa
   const inCountry=highlighted.has(airport.icao)
   if(!chosen&&!inCountry&&(!airport.hasObservedMovements||rank>=rankLimit))return []
   const [x,y]=project(airport.longitude,airport.latitude),city=airport.city.split(/[,(]/)[0].trim(),code=airport.iata||airport.icao
-  const text=chosen&&city?`${code} · ${city}`:code,labelWidth=Math.max(44,Math.min(210,24+text.length*6.7))
+  // Allow 24px for marker, gap and padding, plus rounding slack for Safari font metrics.
+  const text=chosen&&city?`${code} · ${city}`:code,labelWidth=Math.max(44,Math.min(210,Math.ceil(26+text.length*7)))
   return [{airport,text,selected:chosen,highlighted:inCountry,name:airport.icao,rank,priority:chosen?0:inCountry?1:3,retained:retained.has(airport.icao),distance:Math.hypot(x-width/2,y-height/2),box:{left:x-8,right:x-8+labelWidth,top:y-22,bottom:y+22}}]
  })
  return selectMapLabels(candidates,budget,{left:8,right:width-8,top:8,bottom:height-8},obstacles)

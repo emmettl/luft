@@ -2,7 +2,7 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest'
 import {AirMap,BRITAIN,EUROPE} from './map'
 import type {AirTrack} from '@motionstudies/core/domain/air'
 import type {Airport,Land} from './data'
-const context=()=>({...Object.fromEntries(['setTransform','clearRect','drawImage','beginPath','moveTo','lineTo','closePath','fill','stroke','arc','fillRect','strokeRect','fillText'].map(key=>[key,vi.fn()])),createLinearGradient:vi.fn(()=>({addColorStop:vi.fn()}))}) as unknown as CanvasRenderingContext2D
+const context=()=>({...Object.fromEntries(['save','restore','setTransform','clearRect','drawImage','beginPath','moveTo','lineTo','closePath','fill','stroke','arc','fillRect','strokeRect','fillText'].map(key=>[key,vi.fn()])),createLinearGradient:vi.fn(()=>({addColorStop:vi.fn()}))}) as unknown as CanvasRenderingContext2D
 let ctx:CanvasRenderingContext2D,backdrop:CanvasRenderingContext2D,canvas:HTMLCanvasElement,resize:()=>void
 const disconnect=vi.fn()
 beforeEach(()=>{
@@ -18,6 +18,19 @@ const land={features:[{geometry:{type:'Polygon',coordinates:[[[0,40],[5,45],[10,
 const track=(id:string,samples:AirTrack['samples']):AirTrack=>({id,callsign:id,start:samples[0][0],end:samples.at(-1)![0],samples})
 const tracks=[track('visible',[[0,0,50,10000,300],[10,1,50,10000,300]])]
 const cells=[[0,50,3]]
+it('draws the whole selected observed route with separate gaps and removes it on clear',()=>{
+ const map=new AirMap(canvas,land,[]),empty:AirTrack[]=[]
+ map.selectedFlight='visible'
+ map.setFlightRoute({id:'visible',segments:[[[0,-4,50],[10,0,50]],[[100,4,50],[110,8,50]]]})
+ map.draw(empty,5,undefined,'motion',cells)
+ expect(ctx.moveTo).toHaveBeenCalledTimes(2);expect(ctx.lineTo).toHaveBeenCalledTimes(2)
+ expect(ctx.arc).toHaveBeenCalledTimes(2)
+ const paints=vi.mocked(ctx.stroke).mock.calls.length
+ map.draw(empty,5,undefined,'motion',cells);expect(ctx.stroke).toHaveBeenCalledTimes(paints)
+ map.selectedFlight=undefined;map.draw(empty,5,undefined,'motion',cells)
+ expect(ctx.stroke).toHaveBeenCalledTimes(paints)
+ map.dispose()
+})
 it('caches country borders and repaints fills and all airport markers on a paused selection change',()=>{
  const airports=[{icao:'TEST',latitude:50,longitude:0,iata:'TST',city:'Test',hasObservedMovements:false}] as Airport[]
  const map=new AirMap(canvas,land,airports),countries=[{code:'XX',name:'Test',aliases:[],airports:['TEST'],polygons:[[[[-1,49],[1,49],[1,51],[-1,51],[-1,49]]]]}]

@@ -1,6 +1,20 @@
 import {test,expect} from '@playwright/test'
 import {pauseAtStart} from './playback-helpers'
 test.use({hasTouch:true})
+test('airport codes fit completely inside their labels',async({page})=>{
+ await page.setViewportSize({width:1440,height:1000});await page.goto('./');await pauseAtStart(page)
+ const labels=page.locator('.airport-map-label');await expect.poll(()=>labels.count()).toBeGreaterThan(0)
+ await page.getByRole('button',{name:'Britain',exact:true}).click()
+ await expect.poll(()=>labels.count()).toBeGreaterThan(10)
+ const clipped=await labels.evaluateAll(elements=>elements.flatMap(element=>{
+  const span=element.querySelector('span')!,range=document.createRange();range.selectNodeContents(span)
+  const available=span.getBoundingClientRect().width,needed=range.getBoundingClientRect().width
+  const allowance=element.getBoundingClientRect().right-parseFloat(getComputedStyle(element).paddingRight)-span.getBoundingClientRect().left
+  // Integer scroll/client widths miss Safari's subpixel overflow (20.40px into 20.09px).
+  return needed>available+.01||needed+1>allowance?[{text:span.textContent,available,needed,allowance}]:[]
+ }))
+ expect(clipped).toEqual([])
+})
 test('hierarchical airport labels add filters and boards with pointer and keyboard in either renderer',async({page})=>{
  await page.goto('./');await pauseAtStart(page)
  const labels=page.locator('.airport-map-label')

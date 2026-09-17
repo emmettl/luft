@@ -31,4 +31,5 @@ for(const [key,tracks] of buckets)await writeFile(new URL(`flight-routes/${key}.
 await writeFile(new URL('snapshots.json',directory),JSON.stringify({...provenance,tracks:[...snapshots]})+'\n')
 await writeFile(new URL('airlines.json',directory),JSON.stringify({...provenance,airlines:Object.fromEntries(Object.entries(airlines).map(([id,s])=>[id,{aircraft:s.aircraft}]))})+'\n')
 for(const [id,summary] of Object.entries(airlines))await writeFile(new URL(`airlines/${id}.json`,directory),JSON.stringify({...provenance,summary})+'\n')
+await writeFile(new URL('../public/feed.json',import.meta.url),JSON.stringify({...provenance,releaseUrl:lock.url})+'\n')
 console.log(JSON.stringify(Object.fromEntries(Object.entries(airlines).map(([id,s])=>[id,{aircraft:s.aircraft,samples:s.samples,peakSnapshot:Math.max(...s.bins.map(b=>b.count))}]))))

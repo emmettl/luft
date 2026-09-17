@@ -1,0 +1,173 @@
+{
+  "tracks": [
+    {
+      "id": "0100dd-37760",
+      "callsign": "MSR748",
+      "start": 37760,
+      "end": 40350,
+      "icaoAddress": "0100dd",
+      "origin": {
+        "icao": "LGAV",
+        "iata": "ATH",
+        "name": "Athens Eleftherios Venizelos International Airport",
+        "city": "Spata-Artemida",
+        "time": 37770,
+        "evidence": "observed-endpoint"
+      },
+      "sampleCount": 75
+    },
+    {
+      "id": "461f49-41430",
+      "callsign": "FIN141",
+      "start": 41430,
+      "end": 49040,
+      "icaoAddress": "461f49",
+      "origin": {
+        "icao": "EFHK",
+        "iata": "HEL",
+        "name": "Helsinki Vantaa Airport",
+        "city": "Helsinki (Vantaa)",
+        "time": 41480,
+        "evidence": "observed-endpoint"
+      },
+      "sampleCount": 567
+    },
+    {
+      "id": "7c8068-45300",
+      "callsign": "QFA10",
+      "start": 45300,
+      "end": 53290,
+      "icaoAddress": "7c8068",
+      "origin": {
+        "icao": "EGLL",
+        "iata": "LHR",
+        "name": "London Heathrow Airport",
+        "city": "London",
+        "time": 45330,
+        "evidence": "observed-endpoint"
+      },
+      "sampleCount": 639
+    }
+  ],
+  "enrichment": {
+    "kind": "air-endpoint-enrichment",
+    "schemaVersion": 1,
+    "date": "2026-09-14",
+    "sourceManifestSha256": "34a4a7449b38881827f35e87ec0278342bba60d4aac77316654551eb9392fd5c",
+    "airports": [
+      {
+        "icao": "EFHK",
+        "iata": "HEL",
+        "name": "Helsinki Vantaa Airport",
+        "continent": "EU"
+      },
+      {
+        "icao": "EGLL",
+        "iata": "LHR",
+        "name": "London Heathrow Airport",
+        "continent": "EU"
+      },
+      {
+        "icao": "HECA",
+        "iata": "CAI",
+        "name": "Cairo International Airport",
+        "continent": "AF"
+      },
+      {
+        "icao": "LGAV",
+        "iata": "ATH",
+        "name": "Athens Eleftherios Venizelos International Airport",
+        "continent": "EU"
+      },
+      {
+        "icao": "VTBS",
+        "iata": "BKK",
+        "name": "Suvarnabhumi Airport",
+        "continent": "AS"
+      },
+      {
+        "icao": "YPPH",
+        "iata": "PER",
+        "name": "Perth International Airport",
+        "continent": "OC"
+      }
+    ],
+    "sources": [
+      {
+        "id": "ourairports",
+        "kind": "airport-reference",
+        "url": "https://ourairports.com/data/",
+        "sha256": "aa7ca36569820d40f422c994708e36f818426932e85e75da8131d6db61cda1f0",
+        "license": "public-domain"
+      },
+      {
+        "id": "vrs",
+        "kind": "route-reference",
+        "url": "reports/route-reference.json",
+        "sha256": "a11337561da56fc1094a84434739eb5da0f4e547327da554e16f18cd55115ceb",
+        "license": "CC0-1.0"
+      },
+      {
+        "id": "audit-1",
+        "kind": "association-audit",
+        "url": "reports/audit-1.json",
+        "sha256": "f90bd91fe42e77542ffca7bf382a063593a9c761af6e1dd8caff3e9ec7d70333",
+        "license": "ODbL-1.0"
+      },
+      {
+        "id": "audit-2",
+        "kind": "association-audit",
+        "url": "reports/audit-2.json",
+        "sha256": "3424ac5363e11b5a66cef3b4c56ff98f16a6fd534ed505afe92f35b0cae35488",
+        "license": "ODbL-1.0"
+      }
+    ],
+    "proposals": [
+      {
+        "trackId": "7c8068-45300",
+        "callsign": "QFA10",
+        "aircraft": "7c8068",
+        "side": "destination",
+        "airport": "YPPH",
+        "anchor": "EGLL",
+        "status": "corroborated",
+        "sourceIds": [
+          "vrs",
+          "audit-2"
+        ],
+        "reasons": []
+      },
+      {
+        "trackId": "461f49-41430",
+        "callsign": "FIN141",
+        "aircraft": "461f49",
+        "side": "destination",
+        "airport": "VTBS",
+        "anchor": "EFHK",
+        "status": "conflicting",
+        "sourceIds": [
+          "vrs",
+          "audit-2"
+        ],
+        "reasons": [
+          "impossible-observation-speed"
+        ]
+      },
+      {
+        "trackId": "0100dd-37760",
+        "callsign": "MSR748",
+        "aircraft": "0100dd",
+        "side": "destination",
+        "airport": "HECA",
+        "anchor": "LGAV",
+        "status": "candidate",
+        "sourceIds": [
+          "vrs"
+        ],
+        "reasons": [
+          "not-audited"
+        ]
+      }
+    ]
+  }
+}

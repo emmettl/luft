@@ -1,3 +1,4 @@
+import {aircraftText} from './release-expectations'
 import {test,expect} from '@playwright/test'
 import {pauseAtStart} from './playback-helpers'
 
@@ -30,7 +31,7 @@ test('native touch taps add filters while cancelled gestures and outside taps on
  const search=page.getByRole('combobox',{name:'Search flights'})
  await search.tap();await search.fill('SWISS')
  await page.getByRole('option',{name:/^SWISS/}).tap()
- await expect(page.locator('.selection-summary')).toContainText('97 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['swiss']}))
  await search.tap();await search.fill('easyJet')
  const option=page.getByRole('option',{name:/^easyJet/})
  await option.dispatchEvent('pointerdown',{pointerType:'touch',pointerId:9,isPrimary:true,bubbles:true})
@@ -40,7 +41,7 @@ test('native touch taps add filters while cancelled gestures and outside taps on
  await page.locator('.play').tap()
  await expect(page.getByRole('listbox')).toHaveCount(0)
  await search.tap();await search.fill('easyJet');await option.tap()
- await expect(page.locator('.selection-summary')).toContainText('458 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['swiss','easyjet']}))
  await search.tap();await search.press('Escape');await expect(page.getByRole('listbox')).toHaveCount(0)
  await search.tap()
  // Explicit keyboard focus leaving the widget also dismisses the results.
@@ -55,7 +56,7 @@ test('untyped airline suggestions receive taps above the phone playback dock',as
  const option=await swiss.boundingBox(),dock=await page.locator('footer').boundingBox()
  expect(option!.y+option!.height).toBeGreaterThan(dock!.y)
  await swiss.tap()
- await expect(page.locator('.selection-summary')).toContainText('97 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['swiss']}))
  await expect(page.getByRole('button',{name:'Remove SWISS',exact:true})).toBeVisible()
  await expect(page.getByRole('listbox')).toHaveCount(0)
 })

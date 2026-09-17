@@ -1,5 +1,6 @@
 import release from '../package.json' with {type:'json'}
 import {pauseAtStart} from './playback-helpers'
+import {aircraftText,frameText} from './release-expectations'
 import {test,expect,type Page} from '@playwright/test'
 const add=async(page:Page,q:string)=>{await page.getByRole('combobox',{name:'Search flights'}).fill(q);await page.getByRole('combobox',{name:'Search flights'}).press('Enter')}
 
@@ -7,10 +8,10 @@ test('renderer switches preserve clock, carrier and airport; GPU draws and falls
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
  await page.goto('./');await pauseAtStart(page)
  await add(page,'SWISS')
- await expect(page.locator('.selection-summary')).toContainText('97 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['swiss']}))
  await add(page,'ZRH');await page.getByRole('button',{name:'ZRH board'}).click()
  // Wait for the pinned 07:00 SWISS/ZRH selection, not the previous carrier-only frame.
- await expect(page.locator('.count')).toHaveText('24 aircraft · SWISS · ZRH')
+ await expect(page.locator('.count')).toHaveText(`${frameText(25200,{airlines:['swiss'],airports:['LSZH']})} · SWISS · ZRH`)
  const count=await page.locator('.count').innerText()
  await page.getByRole('button',{name:'Close airport board'}).click()
  await page.getByRole('button',{name:'View settings',exact:true}).click()
@@ -65,7 +66,7 @@ test('GPU playback loops at midnight without changing renderer or carrier',async
  await page.goto('./?renderer=three');await page.getByRole('button',{name:'View settings',exact:true}).click();await expect(page.getByRole('combobox',{name:'Aircraft renderer'})).toHaveValue('three')
  await pauseAtStart(page)
  await add(page,'easyJet')
- await expect(page.locator('.selection-summary')).toContainText('361 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['easyjet']}))
  await page.getByRole('slider').fill('86399');await expect(page.getByRole('slider')).toHaveValue('86399')
  await page.getByRole('combobox',{name:'Playback speed'}).selectOption('900')
  await page.getByRole('button',{name:'Play',exact:true}).click()

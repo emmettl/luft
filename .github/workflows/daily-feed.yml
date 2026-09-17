@@ -1,0 +1,103 @@
+name: Refresh daily aircraft feed
+on:
+  schedule:
+    - cron: '23 6,12 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Completed UTC day (blank selects yesterday)'
+        required: false
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: pages-refs/heads/main
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    env:
+      FEED_DATE: ${{ inputs.date }}
+      FEED_CANDIDATE: ${{ runner.temp }}/luft-daily/candidate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@11.19.0
+      - run: npm ci
+      - name: Select completed UTC day
+        id: plan
+        run: node scripts/daily/plan.mjs
+      - name: Recover a previously published candidate
+        if: steps.plan.outputs.changed == 'true'
+        id: recover
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEED_DATE: ${{ steps.plan.outputs.date }}
+        run: node scripts/daily/recover.mjs
+      - name: Check out the pinned private recorder
+        if: steps.plan.outputs.changed == 'true' && steps.recover.outputs.recovered != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: emmettl/motionstudies-recorder
+          ref: ${{ steps.plan.outputs.recorder }}
+          path: .daily-recorder
+          ssh-key: ${{ secrets.RECORDER_READ_KEY }}
+          persist-credentials: false
+      - name: Install recorder dependencies
+        if: steps.plan.outputs.changed == 'true' && steps.recover.outputs.recovered != 'true'
+        run: npm ci --prefix .daily-recorder
+      - name: Capture, compile and enrich the day
+        if: steps.plan.outputs.changed == 'true' && steps.recover.outputs.recovered != 'true'
+        env:
+          FEED_DATE: ${{ steps.plan.outputs.date }}
+        run: node scripts/daily/prepare.mjs --date "$FEED_DATE" --recorder .daily-recorder --work "$RUNNER_TEMP/luft-daily"
+      - name: Verify and adopt the candidate
+        if: steps.plan.outputs.changed == 'true'
+        run: node scripts/daily/adopt.mjs --candidate "$FEED_CANDIDATE"
+      - run: npm run data:fetch
+      - run: npm run build && npm test
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:browser
+      - name: Publish the validated release and advance main
+        if: steps.plan.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/daily/publish.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daily-browser-checks
+          path: test-results
+          retention-days: 7
+      - name: Record the refresh outcome
+        if: always()
+        env:
+          FEED_RESULT: ${{ job.status }}
+          SELECTED_DATE: ${{ steps.plan.outputs.date }}
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,`Recorded day: ${process.env.SELECTED_DATE}\n\nValidation/publication: ${process.env.FEED_RESULT}. The live site changes only after a successful Pages deployment. A failed attempt retains the last deployment; rerun this workflow to recover.\n`)'
+  deploy:
+    needs: refresh
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - uses: actions/deploy-pages@v4
+        id: deployment

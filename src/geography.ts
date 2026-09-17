@@ -1,4 +1,4 @@
-import reference from './generated/geography.json'
+import reference from './generated/geography.json' with {type:'json'}
 import {AIR_CONTINENTS} from '@motionstudies/core/air-continents'
 
 export const CONTINENTS=AIR_CONTINENTS

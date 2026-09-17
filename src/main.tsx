@@ -28,8 +28,17 @@ type Release=Awaited<ReturnType<typeof loadRelease>>
 const stamp=(n:number)=>`${String(Math.floor(n/3600)).padStart(2,'0')}:${String(Math.floor(n/60)%60).padStart(2,'0')}`
 function App(){
  const [release,setRelease]=useState<Release>(),[error,setError]=useState('')
+ const [newDay,setNewDay]=useState('')
  useEffect(()=>{loadRelease().then(setRelease).catch(e=>setError(e.message))},[])
- return <>{release?<Study release={release}/>:<main className="opening"><span className="eyebrow">Motion Studies / research</span><h1>LUFT</h1><p role="status">{error||'Opening a day over Europe…'}</p>{error&&<button onClick={()=>location.reload()}>Retry</button>}</main>}</>
+ useEffect(()=>{
+  if(!release)return
+  let disposed=false
+  const check=async()=>{if(document.hidden)return;try{const response=await fetch(`${import.meta.env.BASE_URL}feed.json`,{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!response.ok)return;const latest=await response.json();if(!disposed&&/^\d{4}-\d{2}-\d{2}$/.test(latest.date)&&latest.date>release.manifest.date)setNewDay(latest.date)}catch{/* Keep the recorded day usable when offline. */}}
+  void check();const timer=setInterval(()=>void check(),5*60*1000)
+  window.addEventListener('focus',check);document.addEventListener('visibilitychange',check)
+  return()=>{disposed=true;clearInterval(timer);window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check)}
+ },[release])
+ return <>{release?<Study release={release}/>:<main className="opening"><span className="eyebrow">Motion Studies / research</span><h1>LUFT</h1><p role="status">{error||'Opening a day over Europe…'}</p>{error&&<button onClick={()=>location.reload()}>Retry</button>}</main>}{newDay&&<button className="new-day" onClick={()=>location.reload()}>New recorded day · {newDay} · Refresh</button>}</>
 }
 function Study({release}:{release:Release}) {
  const {manifest,index,land,snapshots,countries,enrichment}=release,canvas=useRef<HTMLCanvasElement>(null),accentCanvas=useRef<HTMLCanvasElement>(null),map=useRef<AirMap|null>(null)

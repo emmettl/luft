@@ -1,11 +1,12 @@
 import {test,expect} from '@playwright/test'
 import {pauseAtStart} from './playback-helpers'
+import {frameText} from './release-expectations'
 
 test('flights are dimmed by default and can be hidden without changing the selected counts or timeline',async({page})=>{
  await page.goto('./');await pauseAtStart(page)
  const search=page.getByRole('combobox',{name:'Search flights'})
  await search.fill('SWISS');await page.getByRole('option',{name:/^SWISS/}).click()
- await expect(page.locator('.count')).toHaveText('27 aircraft · SWISS')
+ await expect(page.locator('.count')).toHaveText(`${frameText(25200,{airlines:['swiss']})} · SWISS`)
  const count=await page.locator('.count').innerText(),timeline=await page.locator('.ms-study-timeline__heading').innerText()
  const pixels=()=>page.locator('canvas').first().evaluate(canvas=>(canvas as HTMLCanvasElement).toDataURL())
  const dimmed=await pixels()

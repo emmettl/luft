@@ -171,3 +171,4 @@ button{transition:background 160ms,border-color 160ms,color 160ms}
  .insights-panel{position:absolute;z-index:4;top:106px;right:28px;width:350px;margin:0;max-height:calc(100% - 106px - var(--dock-clearance) - 12px)}
 }
 @media(min-width:1000px) and (max-height:620px){.selection-tools{top:8px}.insights-panel{top:64px;max-height:calc(100% - 64px - var(--dock-clearance) - 8px)}}
+:root .new-day{position:fixed;z-index:100;top:12px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);min-height:44px;padding:10px 16px;background:#181c20;color:#e9bc6c;border:1px solid #8b744e;border-radius:6px;box-shadow:0 4px 24px #0008;font:inherit;cursor:pointer}

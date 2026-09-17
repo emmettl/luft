@@ -1,3 +1,4 @@
+import {aircraftText} from './release-expectations'
 import {pauseAtStart} from './playback-helpers'
 import {test,expect,type Page} from '@playwright/test'
 const add=async(page:Page,query:string,name:RegExp)=>{const search=page.getByRole('combobox',{name:'Search flights'});await search.fill(query);await page.getByRole('option',{name}).click()}
@@ -8,13 +9,13 @@ test('unified pills combine airlines, airports and routes across map, activity a
  await ready(page)
  const allActivity=await page.locator('.ms-study-timeline svg').innerHTML()
  await add(page,'swiss',/^SWISS/)
- await expect(page.locator('.selection-summary')).toContainText('97 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['swiss']}))
  await expect(page.locator('.count')).toContainText('SWISS')
  expect(await page.locator('.ms-study-timeline svg').innerHTML()).not.toEqual(allActivity)
  await add(page,'easyjet',/^easyJet/)
  await expect(page.getByRole('group',{name:'Selected filters'})).toContainText('SWISS')
  await expect(page.getByRole('group',{name:'Selected filters'})).toContainText('easyJet')
- await expect(page.locator('.selection-summary')).toContainText('458 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['swiss','easyjet']}))
  await add(page,'ZRH',/^ZRH Zurich/)
  await expect(page.locator('.ms-airport-hero')).toHaveCount(0)
  await expect(page.locator('.airport-key')).toContainText('inbound')
@@ -51,7 +52,7 @@ test('search keyboard, empty intersections, removal and many pills keep the cont
  await expect(page.locator('.selection-summary')).toContainText('0 aircraft')
  await expect(page.locator('.count')).toHaveText(/^0 aircraft/)
  await page.getByRole('button',{name:'Remove LHR'}).click()
- await expect(page.locator('.selection-summary')).toContainText('361 aircraft')
+ await expect(page.locator('.selection-summary')).toContainText(aircraftText({airlines:['easyjet']}))
  for(const [query,name] of [['swiss',/^SWISS/],['ryanair',/^Ryanair/],['lufthansa',/^Lufthansa/],['british',/^British Airways/]] as const)await add(page,query,name)
  await expect(page.locator('.filter-pill')).toHaveCount(5)
  await expect(page.locator('.play')).toBeInViewport()

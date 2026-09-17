@@ -1,33 +1,45 @@
 import {expect,it} from 'vitest'
-import {readFileSync} from 'node:fs'
-import {gunzipSync} from 'node:zlib'
-import {createEndpointResolver,readAirEnrichment,endpointCoverage} from '@motionstudies/core/air-enrichment'
+import {createEndpointResolver,readAirEnrichment,endpointCoverage,usableEndpoint} from '@motionstudies/core/air-enrichment'
 import {EMPTY_ENDPOINT_FILTER,matchesEndpointFilter} from '../src/endpoint-filters'
-import type {Index} from '../src/data'
-import lock from '../enrichment-release.json'
-const manifest=JSON.parse(readFileSync(new URL('../public/data/manifest.json',import.meta.url),'utf8'))
-const index=JSON.parse(gunzipSync(readFileSync(new URL(`../public/data/${manifest.index.path}`,import.meta.url))).toString()) as Index
-const enrichment=readAirEnrichment(JSON.parse(gunzipSync(readFileSync(new URL(`../public/${lock.path}`,import.meta.url))).toString()),{date:lock.date,sourceManifestSha256:lock.sourceManifestSha256,tracks:index.aircraft})
-const resolve=createEndpointResolver(enrichment)
-it('binds the exported evidence to all canonical segments and preserves observed endpoints',()=>{
+import {index,resolveEndpoint as resolve} from '../tests/release-expectations'
+import fixture from '../tests/fixtures/enrichment-reviewed.json'
+it('binds the daily evidence to canonical segments and preserves observed endpoints',()=>{
  const before=JSON.stringify(index.aircraft)
- expect(endpointCoverage(index.aircraft,resolve,'destination')).toMatchObject({segments:40945,observed:22000,corroborated:8,candidate:7238,conflicting:11,unknown:11688,usable:22008,unresolved:18937})
- expect(endpointCoverage(index.aircraft,resolve,'origin')).toMatchObject({observed:22499,corroborated:9,usable:22508})
+ for(const side of ['origin','destination'] as const){
+  const coverage=endpointCoverage(index.aircraft,resolve,side)
+  expect(coverage.segments).toBe(index.aircraft.length)
+  expect(coverage.observed).toBe(index.aircraft.filter(t=>t[side]).length)
+  expect(coverage.observed+coverage.corroborated+coverage.candidate+coverage.conflicting+coverage.unknown).toBe(index.aircraft.length)
+  expect(coverage.usable).toBe(coverage.observed+coverage.corroborated)
+  for(const track of index.aircraft.filter(t=>t[side])){
+   expect(resolve(track,side).status).toBe('observed')
+   expect(resolve(track,side).airport?.icao).toBe(track[side]!.icao)
+  }
+ }
  expect(JSON.stringify(index.aircraft)).toBe(before)
 })
-it('keeps unknown tracks unfiltered by default and requires candidate opt-in for matching',()=>{
- expect(index.aircraft.filter(t=>matchesEndpointFilter(t,EMPTY_ENDPOINT_FILTER,resolve))).toHaveLength(40945)
- const north={...EMPTY_ENDPOINT_FILTER,continent:'NA' as const}
- expect(index.aircraft.filter(t=>matchesEndpointFilter(t,north,resolve))).toHaveLength(4)
- expect(index.aircraft.filter(t=>matchesEndpointFilter(t,{...north,includeCandidates:true},resolve)).length).toBeGreaterThan(4)
- const unresolved=index.aircraft.filter(t=>matchesEndpointFilter(t,{...EMPTY_ENDPOINT_FILTER,continent:'unresolved'},resolve))
- expect(unresolved).toHaveLength(18937)
- const conflict=index.aircraft.find(t=>resolve(t,'destination').status==='conflicting')!
- expect(matchesEndpointFilter(conflict,{...EMPTY_ENDPOINT_FILTER,airport:resolve(conflict,'destination').airport!.icao,includeCandidates:true},resolve)).toBe(false)
+it('keeps unknown tracks unfiltered and only matches usable evidence',()=>{
+ expect(index.aircraft.filter(t=>matchesEndpointFilter(t,EMPTY_ENDPOINT_FILTER,resolve))).toHaveLength(index.aircraft.length)
+ for(const side of ['origin','destination'] as const){
+  for(const includeCandidates of [false,true]){
+   const filter={...EMPTY_ENDPOINT_FILTER,side,includeCandidates,continent:'NA' as const}
+   const expected=index.aircraft.filter(t=>{const label=resolve(t,side);return usableEndpoint(label,includeCandidates)&&label.airport?.continent==='NA'})
+   expect(index.aircraft.filter(t=>matchesEndpointFilter(t,filter,resolve))).toEqual(expected)
+  }
+ }
 })
-it('uses exact endpoint direction and airport without changing observed airport/route semantics',()=>{
- const t=index.aircraft.find(t=>t.callsign==='QFA10'&&resolve(t,'destination').status==='corroborated')!
- expect(matchesEndpointFilter(t,{...EMPTY_ENDPOINT_FILTER,airport:'YPPH'},resolve)).toBe(true)
- expect(matchesEndpointFilter(t,{...EMPTY_ENDPOINT_FILTER,side:'origin',airport:'YPPH'},resolve)).toBe(false)
- expect(t.destination).toBeUndefined()
+// Retain reviewed September 14 regressions independently of the current day.
+it('preserves corroborated direction, candidate opt-in and conflict exclusion in the archived review fixture',()=>{
+ const enrichment=readAirEnrichment(fixture.enrichment,{date:fixture.enrichment.date,sourceManifestSha256:fixture.enrichment.sourceManifestSha256,tracks:fixture.tracks})
+ const resolve=createEndpointResolver(enrichment)
+ const qfa=fixture.tracks.find(t=>t.callsign==='QFA10')!
+ expect(matchesEndpointFilter(qfa,{...EMPTY_ENDPOINT_FILTER,airport:'YPPH'},resolve)).toBe(true)
+ expect(matchesEndpointFilter(qfa,{...EMPTY_ENDPOINT_FILTER,side:'origin',airport:'YPPH'},resolve)).toBe(false)
+ expect(qfa.destination).toBeUndefined()
+ for(const status of ['candidate','conflicting'] as const){
+  const track=fixture.tracks.find(t=>resolve(t,'destination').status===status)!
+  const filter={...EMPTY_ENDPOINT_FILTER,airport:resolve(track,'destination').airport!.icao}
+  expect(matchesEndpointFilter(track,filter,resolve)).toBe(false)
+  expect(matchesEndpointFilter(track,{...filter,includeCandidates:true},resolve)).toBe(status==='candidate')
+ }
 })

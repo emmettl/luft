@@ -2,7 +2,7 @@
 
 A recorded day of aircraft movement over Europe. A Motion Studies research edition, opening at the continental scale: London, Paris and other places emerge through the accumulation of movement. The artistic thesis remains open; LUFT is an early study, without a catalogue number.
 
-**[Open LUFT](https://emmettl.github.io/luft/)** · [Dated source data](https://github.com/emmettl/luft/releases/tag/air-2026-09-14-v1)
+**[Open LUFT](https://emmettl.github.io/luft/)** · [Recorded data releases](https://github.com/emmettl/luft/releases)
 
 Use one search for airports, airlines and observed routes. Add several removable pills: **SWISS + easyJet** shows either carrier; adding **ZRH** narrows those airlines to movements associated with Zürich. Multiple airports are alternatives, as are multiple routes. Categories intersect. **LHR ZRH** finds the route in either direction. Unknown endpoints do not match an airport or route filter; associations are inferred observations, not confirmed schedules.
 
@@ -59,7 +59,7 @@ npx playwright install chromium webkit
 npm run test:browser
 ```
 
-GitHub Actions performs these checks, imports the pinned release, and deploys the built site to GitHub Pages on `main`.
+GitHub Actions performs these checks, imports the pinned release, and deploys the built site to GitHub Pages on `main`. The daily feed workflow attempts yesterday’s UTC day at 06:23 UTC, with a second attempt at 12:23 UTC. Failed validation leaves the last successful deployment live. Open tabs offer a refresh when a newer recorded day is available. See [daily refresh operations](docs/DAILY-REFRESH.md).
 
 ## What the first release contains
 
@@ -71,7 +71,7 @@ GitHub Actions performs these checks, imports the pinned release, and deploys th
 - Approximately 264 MB for the whole release; a roughly 1.8 MB compressed index, small land context, then the current chunk and up to three ahead. The entire day is not loaded into memory.
 - Airport inference uses the complete retained global trace and conservative proximity, altitude, speed and ambiguity checks. Unknown endpoints remain blank. Times are observed boundaries, not schedules, gate events or confirmed flight plans. Associations can be incomplete or wrong, especially at receiver gaps and day edges.
 
-The first release reuses captures already acquired for the Europe proof. It is exported by `motionstudies-recorder` commit `e0e506ad49f011f754bc2653c916992acd6cee89` ([isolated exporter PR](https://github.com/emmettl/motionstudies-recorder/pull/5)). It has **no connection to the ongoing live recorder cutover**, enrollment, launchd or storage migration. A later date needs an explicit recorder export, new public data release and lock update. This is not an automatically updating or live feed.
+The first release reuses captures already acquired for the Europe proof. It is exported by `motionstudies-recorder` commit `e0e506ad49f011f754bc2653c916992acd6cee89` ([isolated exporter PR](https://github.com/emmettl/motionstudies-recorder/pull/5)). It has **no connection to the ongoing live recorder cutover**, enrollment, launchd or storage migration. Daily publication now exports the previous complete UTC day, validates it, publishes a dated release and updates the site. See [daily refresh and recovery](docs/DAILY-REFRESH.md). The header identifies the current recorded date; the first-release figures below and above describe September 14. This remains recorded playback, not live traffic.
 
 ## Playback and device evaluation
 

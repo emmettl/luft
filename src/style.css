@@ -175,6 +175,13 @@ button{transition:background 160ms,border-color 160ms,color 160ms}
 
 .view-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
 .view-actions .settings-toggle{margin:0}
+.sound-control{position:relative}
+.sound-toggle{display:flex;align-items:center;gap:7px;min-width:44px}
+.sound-note{position:absolute;bottom:calc(100% + 12px);right:0;width:max-content;max-width:220px;padding:9px 12px;border:1px solid #39505f;border-radius:6px;background:#0b1725;color:#c6d6df;font-size:11px;line-height:1.5}
+.watch-actions{display:flex;align-items:center;gap:8px}
+.watch-actions .sound-toggle[aria-pressed=true]{color:#efce99;border-color:#bb9b64}
+.watch-actions .sound-toggle span{margin:0;color:inherit}
+@media(max-width:700px){.sound-toggle{padding:10px}.sound-toggle>span{display:none}}
 @media(min-width:1000px){.view-actions{grid-column:3;grid-row:1;align-self:center;margin:0}}
 .watch-toggle{display:flex;align-items:center;gap:7px;min-width:44px;margin-left:auto}
 .study[data-watch]{height:100dvh;min-height:0;background:#070e17;outline:none}
@@ -192,6 +199,8 @@ body:has(.study[data-watch])>.new-day,body:has(.study[data-watch]) .new-day{disp
 .watch-error button{margin-left:12px}
 @media(max-width:700px){.watch-toggle{padding:10px}.watch-toggle>span{display:none}.watch-exit>span{font-size:8px}.watch-exit{width:100%;bottom:30px}}
 @media(max-width:700px){
- .view-actions{gap:6px}.view-actions .settings-toggle{gap:7px;padding:10px 8px}
+ .transport{gap:4px}.view-actions{gap:4px}.view-actions .settings-toggle{min-width:44px;justify-content:center;padding:10px}.settings-toggle .view-label{display:none}
  .playback-controls{gap:6px}.playback-controls .play{gap:6px;padding:10px 9px}.playback-controls select{padding-left:9px}
 }
+.settings-toggle .view-label{font-size:inherit}
+@media(max-width:359px){.study{--dock-clearance:264px}.stage canvas{--luft-map-bottom:266px}}

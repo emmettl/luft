@@ -28,6 +28,12 @@ Selections are saved in the URL hash, so copying the address shares every active
 
 The same build step derives airport country and continent metadata from the bundled OurAirports CSV, verifying it and the airport index against the pinned manifest. It joins reference identifiers to the recorded endpoints without inventing missing route evidence. Geography does not depend on a live lookup.
 
+## Sound
+
+**Sound** starts a quiet, original 64-second ambient loop: overlapping warm chords and sparse bell-like notes. It starts off on every visit and is also available beside the exit button in Watch mode. Sound fades in and out, follows its own pace while you pause or scrub the map, and switches off when you leave the tab; tap Sound to start again. It is a musical accompaniment, not a representation of aircraft activity.
+
+The browser composes the stereo loop locally on first use with Web Audio, retaining overlapping tails across its seam. No audio download, external service or third-party recording is used. Muting suspends audio processing after the fade.
+
 ## Moments
 
 Open **Moments** for a short tour of the recorded day: its quietest and busiest five-minute snapshots, and the largest rise and fall between snapshots one hour apart. Moments follow all active filters, including endpoint filters, and count distinct aircraft using the same snapshot series as the timeline. Ties use the earliest time; flat or empty selections show fewer moments. Comparisons stay within the recorded day and never wrap across midnight.

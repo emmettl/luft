@@ -1,9 +1,9 @@
 {
   "name": "luft",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
-  "description": "LUFT — observed flights over Europe, a Motion Studies research edition",
+  "description": "LUFT \u2014 observed flights over Europe, a Motion Studies research edition",
   "engines": {
     "node": ">=24"
   },

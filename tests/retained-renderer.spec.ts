@@ -17,13 +17,22 @@ test('retained shaders preserve exact-time heads, gaps and tail expiry without r
    painter.begin(400,400,1,projection,time);painter.prepare(tracks);painter.aircraft(0,positionForAirTrack(track,time),true);painter.end()
    frames.push({time,completed:ink(40),head:ink(time===20?70:60),gap:ink(150),recent:ink(220),late:ink(320),stats:painter.stats()})
   }
+  const holdingFrames=[]
+  painter.setWatchMode(true)
+  for(const score of [0,.9,0]){
+   painter.begin(400,400,1,projection,15);painter.prepare(tracks);painter.aircraft(0,positionForAirTrack(track,15),true,1,score);painter.end()
+   holdingFrames.push({alpha:ink(40),builds:painter.stats().geometryBuilds})
+  }
   painter.begin(400,400,2,{...projection,xOffset:31},16);painter.prepare(tracks);painter.aircraft(0,positionForAirTrack(track,16),true);painter.end();const resized=painter.stats()
   painter.clear();const density=painter.stats()
   painter.prepare(tracks,'AIRPORT','test');const selected=painter.stats()
   painter.prepare([]);painter.end();const empty=painter.stats()
-  painter.dispose();host.remove();return {frames,resized,density,selected,empty,failures}
+  painter.dispose();host.remove();return {frames,holdingFrames,resized,density,selected,empty,failures}
  })
  expect(result.failures).toEqual([])
+ expect(result.holdingFrames[1].alpha).toBeGreaterThan(result.holdingFrames[0].alpha)
+ expect(result.holdingFrames[2].alpha).toBe(result.holdingFrames[0].alpha)
+ expect(result.holdingFrames.every(f=>f.builds===1)).toBe(true)
  const [first,exact,gap,resumed,expired,backward]=result.frames
  expect(first.completed).toBeGreaterThan(0);expect(first.head).toBeGreaterThan(0);expect(first.recent).toBe(0)
  expect(exact.head).toBeGreaterThan(0)

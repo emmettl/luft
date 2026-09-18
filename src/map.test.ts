@@ -105,8 +105,8 @@ it('feeds retained GPU state the shared positions, gap validity, selection and p
  map.setPainter(painter)
  expect(map.draw(gapped,65,undefined,'motion',cells)).toEqual(expected)
  expect(painter.prepare).toHaveBeenCalledWith(gapped,[],undefined,undefined)
- expect(painter.aircraft).toHaveBeenLastCalledWith(0,expect.objectContaining({longitude:1.5,latitude:50}),true,1)
- map.draw(gapped,30,undefined,'motion',cells);expect(painter.aircraft).toHaveBeenLastCalledWith(0,undefined,false,0)
+ expect(painter.aircraft).toHaveBeenLastCalledWith(0,expect.objectContaining({longitude:1.5,latitude:50}),true,1,0)
+ map.draw(gapped,30,undefined,'motion',cells);expect(painter.aircraft).toHaveBeenLastCalledWith(0,undefined,false,0,0)
  const basePaints=vi.mocked(ctx.clearRect).mock.calls.length
  vi.stubGlobal('devicePixelRatio',2);map.draw(gapped,65,undefined,'motion',cells)
  expect(ctx.clearRect).toHaveBeenCalledTimes(basePaints+1)
@@ -177,5 +177,16 @@ it('watch mode uses the full viewport without changing observations and restores
  const frames=map.renderedFrames;map.draw(tracks,5,undefined,'motion',cells);expect(map.renderedFrames).toBe(frames)
  map.setWatchMode(false);map.draw(tracks,5,undefined,'motion',cells)
  expect(map.bottomClearance).toBe(170);expect(map.scale).toBe(scale)
+ map.dispose()
+})
+
+it('emphasizes possible holds only in Watch, without overriding filters or explicit selection',()=>{
+ const painter={begin:vi.fn(),prepare:vi.fn(),aircraft:vi.fn(),end:vi.fn(),clear:vi.fn(),dispose:vi.fn(),stats:()=>({calls:0,triangles:0,points:0,geometryBuilds:0,geometryBytes:0,geometryPreparedBytes:0,stateUploadBytes:0})}
+ const map=new AirMap(canvas,land,[]),sample=[track('hold',[[50,0,50,9000,250],[70,.01,50,9000,250]])]
+ map.setHoldingEvidence({hold:[[0,0],[30,.8],[60,.8]]});map.setPainter(painter)
+ map.draw(sample,65,undefined,'motion',cells);expect(painter.aircraft.mock.lastCall?.[4]).toBe(0)
+ map.setWatchMode(true);map.draw(sample,65,undefined,'motion',cells);expect(painter.aircraft.mock.lastCall?.[4]).toBeCloseTo(.8)
+ map.draw(sample,65,undefined,'motion',cells,0,new Set());expect(painter.aircraft.mock.lastCall?.[4]).toBe(0)
+ map.selectedFlight='hold';map.draw(sample,65,undefined,'motion',cells);expect(painter.aircraft.mock.lastCall?.[4]).toBe(0)
  map.dispose()
 })

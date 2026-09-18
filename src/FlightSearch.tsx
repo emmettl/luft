@@ -13,6 +13,7 @@ export function FlightSearch({onClear,onEndpoints,endpointsOpen,endpointActive,c
  const [query,setQuery]=useState(''),[open,setOpen]=useState(false),[active,setActive]=useState(0)
  const root=useRef<HTMLDivElement>(null)
  const input=useRef<HTMLInputElement>(null)
+ const touch=useRef<{id:number;x:number;y:number;scrollTop:number;target:HTMLButtonElement}|null>(null)
  useEffect(()=>{
   if(!open)return
   // A touch can blur the input before its click reaches a result (notably
@@ -55,6 +56,26 @@ export function FlightSearch({onClear,onEndpoints,endpointsOpen,endpointActive,c
   onChange({...selection,[result.type]:[...selection[result.type],result.id]})
   setQuery('');setActive(0);setOpen(false);input.current?.blur()
  }
+ const startTouch=(event:React.TouchEvent<HTMLButtonElement>)=>{
+  const point=event.touches[0]
+  touch.current=event.touches.length===1?{id:point.identifier,x:point.clientX,y:point.clientY,scrollTop:popover.current?.scrollTop??0,target:event.currentTarget}:null
+ }
+ const moveTouch=(event:React.TouchEvent<HTMLButtonElement>)=>{
+  const start=touch.current,point=event.touches[0]
+  if(start&&(event.touches.length!==1||point.identifier!==start.id||Math.hypot(point.clientX-start.x,point.clientY-start.y)>10))touch.current=null
+ }
+ const endTouch=(event:React.TouchEvent<HTMLButtonElement>,result:Result)=>{
+  // Select before keyboard dismissal can swallow the compatibility click.
+  // Cancelling touchend also prevents a second click on the revealed UI.
+  event.preventDefault()
+  const start=touch.current
+  touch.current=null
+  const point=Array.from(event.changedTouches).find(point=>point.identifier===start?.id)
+  if(!start||!point||event.touches.length||start.target!==event.currentTarget||Math.hypot(point.clientX-start.x,point.clientY-start.y)>10||start.scrollTop!==(popover.current?.scrollTop??0))return
+  const bounds=event.currentTarget.getBoundingClientRect()
+  if(point.clientX<bounds.left||point.clientX>bounds.right||point.clientY<bounds.top||point.clientY>bounds.bottom)return
+  add(result)
+ }
  const remove=(type:keyof Selection,id:string)=>onChange({...selection,[type]:selection[type].filter(value=>value!==id)})
  const pills:Result[]=[...selection.countries.map(id=>({type:'countries' as const,id,label:countries.find(c=>c.code===id)?.name||countryLabel(id),detail:'Country · airport-associated flights'})),...selection.airports.map(id=>{const a=airports.find(a=>a.icao===id)!;return {type:'airports' as const,id,label:a?.iata||id,detail:a?.name||'Observed endpoint'}}),...selection.airlines.map(id=>({type:'airlines' as const,id,label:AIRLINES.find(a=>a.id===id)!.name,detail:'Airline'})),...selection.routes.map(id=>({type:'routes' as const,id,label:routes.find(r=>r.id===id)!.label,detail:'Route · both directions'})),...selection.continents.map(id=>({type:'continents' as const,id,label:continentLabel(id),detail:'Continent · either observed endpoint'}))]
  const names={countries:'Countries',airports:'Airports',airlines:'Airlines',routes:'Routes · both directions',continents:'Continents'}
@@ -70,6 +91,6 @@ export function FlightSearch({onClear,onEndpoints,endpointsOpen,endpointActive,c
    {pill.type==='airports'&&airports.some(a=>a.icao===pill.id)?<button className="pill-label" title={`Open ${pill.detail} board`} onClick={()=>onAirportBoard(airports.find(a=>a.icao===pill.id)!)}>{pill.label}</button>:pill.type==='countries'?<button className="pill-label" title={`Focus ${pill.label}`} onClick={()=>onCountryFocus(pill.id)}>{pill.label}</button>:<span title={pill.detail}>{pill.label}</span>}
    <button className="pill-remove" aria-label={`Remove ${pill.label}`} onClick={()=>remove(pill.type,pill.id)}>×</button>
   </div>)}<button className="clear-filters" onClick={onClear}>Clear all</button></div>}
-  {open&&<div ref={popover} className="search-popover"><p className="search-guidance">Countries select flights linked to their airports. Combine groups to narrow the view.</p><div id="flight-results" role="listbox" aria-label="Flight filters">{results.map((result,i)=><React.Fragment key={`${result.type}:${result.id}`}>{(i===0||results[i-1].type!==result.type)&&<div className="result-heading" role="presentation">{names[result.type]}</div>}<button type="button" id={`flight-result-${i}`} role="option" aria-selected={active===i} onPointerDown={event=>{if(event.pointerType==='mouse')event.preventDefault()}} onClick={()=>add(result)}><strong>{result.label}</strong><span>{result.detail}</span><span aria-hidden="true">+</span></button></React.Fragment>)}{!results.length&&<p className="search-empty">No matches. Try a country, airport code, airline or route.</p>}</div></div>}
+  {open&&<div ref={popover} className="search-popover"><p className="search-guidance">Countries select flights linked to their airports. Combine groups to narrow the view.</p><div id="flight-results" role="listbox" aria-label="Flight filters">{results.map((result,i)=><React.Fragment key={`${result.type}:${result.id}`}>{(i===0||results[i-1].type!==result.type)&&<div className="result-heading" role="presentation">{names[result.type]}</div>}<button type="button" id={`flight-result-${i}`} role="option" aria-selected={active===i} onPointerDown={event=>{if(event.pointerType==='mouse')event.preventDefault()}} onPointerCancel={()=>{touch.current=null}} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchCancel={()=>{touch.current=null}} onTouchEnd={event=>endTouch(event,result)} onClick={()=>add(result)}><strong>{result.label}</strong><span>{result.detail}</span><span aria-hidden="true">+</span></button></React.Fragment>)}{!results.length&&<p className="search-empty">No matches. Try a country, airport code, airline or route.</p>}</div></div>}
  </div>
 }

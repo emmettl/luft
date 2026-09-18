@@ -38,3 +38,9 @@ Added browser checks use real touch taps for airlines, airports, routes, pill re
 ### LUFT 0.3.5 · suggestion stacking
 
 The open search container rises above the playback dock. Previously the phone's default airline suggestions (including SWISS) extended into the dock, whose stacking layer intercepted taps. A touch regression selects SWISS from the untyped list where it overlaps the dock, alongside the keyboard-blur checks from 0.3.4.
+
+### LUFT 0.9.1 · touch activation without a compatibility click
+
+Search results now select on a completed single-finger tap, without depending on a subsequent browser-generated click. Cancelling the touch-end default prevents duplicate activation or a click reaching controls revealed when the results close. Movement beyond 10 CSS pixels, list scrolling, multiple fingers, cancellation and release outside the result reject selection; touch start and move retain native scrolling. Mouse clicks, keyboard activation and assistive-technology clicks keep the normal click path.
+
+The regression suite suppresses result clicks during real touch taps and verifies country, airline, airport and route selection. Separate checks cover rejected gestures, subsequent valid taps and mouse/keyboard activation. These run in Chromium and iPhone WebKit emulation; a physical iPhone remains the final check for the reported device behaviour.

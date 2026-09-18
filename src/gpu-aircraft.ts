@@ -9,6 +9,7 @@ uniform sampler2D aircraftState;
 uniform vec2 stateSize;
 uniform float studyTime;
 uniform float emphasis;
+uniform float watching;
 uniform float airportSelected;
 varying vec3 ink;
 varying float alpha;
@@ -32,7 +33,7 @@ void main(){
  bool visible=head.z>0.&&sampleFrom.z>=studyTime-180.&&sampleFrom.z<studyTime;
  vec2 from=project(sampleFrom.xy),to=project(positionTo.z<studyTime?positionTo.xy:head.xy);
  vec2 d=to-from,normal=vec2(-d.y,d.x)/max(length(d),.0001);
- float width=emphasis>1.5?2.:emphasis>.5?1.4:.65;
+ float width=emphasis>1.5?2.:emphasis>.5?1.4:mix(.65,.8,watching);
  float age=clamp((mix(sampleFrom.z,min(positionTo.z,studyTime),position.x)-(studyTime-180.))/180.,0.,1.);
  alpha*=mix(.07,.88,age*age);
  width*=mix(.55,1.,age);
@@ -44,10 +45,10 @@ void main(){
  vec4 head=state(position.x);style(head,position.y);
  ink=mix(ink,vec3(.94,.98,1.),.22);
  gl_Position=head.z>0.?screen(project(head.xy)):vec4(2.,2.,0.,1.);
- gl_PointSize=(emphasis>1.5?11.:emphasis>.5?2.3:1.2)*2.*pixelRatio;
+ gl_PointSize=(emphasis>1.5?11.:watching>.5?4.5:emphasis>.5?2.3:1.2)*2.*pixelRatio;
 }`
 const fragment=`varying vec3 ink;varying float alpha;void main(){gl_FragColor=vec4(ink,alpha);}`
-const pointFragment=`uniform float emphasis;varying vec3 ink;varying float alpha;void main(){float d=length(gl_PointCoord-.5);float radius=emphasis>1.5?.159:.5;float core=1.-smoothstep(radius-fwidth(d),radius,d);float glow=emphasis>1.5?.18*pow(max(0.,1.-d*2.),2.):0.;float edge=max(core,glow);if(edge<=0.)discard;gl_FragColor=vec4(ink,alpha*edge);}`
+const pointFragment=`uniform float watching;uniform float emphasis;varying vec3 ink;varying float alpha;void main(){float d=length(gl_PointCoord-.5);float radius=emphasis>1.5?.159:watching>.5?(emphasis>.5?2.3:1.2)/9.:.5;float core=1.-smoothstep(radius-fwidth(d),radius,d);float glow=emphasis>1.5?.18*pow(max(0.,1.-d*2.),2.):watching>.5?.18*pow(max(0.,1.-d*2.),2.):0.;float edge=max(core,glow);if(edge<=0.)discard;gl_FragColor=vec4(ink,alpha*edge);}`
 export class GpuAircraftPainter implements AircraftPainter {
  private readonly canvas=document.createElement('canvas')
  private readonly renderer:THREE.WebGLRenderer
@@ -55,7 +56,7 @@ export class GpuAircraftPainter implements AircraftPainter {
  private readonly camera=new THREE.Camera()
  private state=new Float32Array(4)
  private texture=new THREE.DataTexture(this.state,1,1,THREE.RGBAFormat,THREE.FloatType)
- private readonly uniforms={viewport:{value:new THREE.Vector2(1,1)},projection:{value:new THREE.Vector4()},pixelRatio:{value:1},aircraftState:{value:this.texture},stateSize:{value:new THREE.Vector2(1,1)},studyTime:{value:0},airportSelected:{value:0}}
+ private readonly uniforms={watching:{value:0},viewport:{value:new THREE.Vector2(1,1)},projection:{value:new THREE.Vector4()},pixelRatio:{value:1},aircraftState:{value:this.texture},stateSize:{value:new THREE.Vector2(1,1)},studyTime:{value:0},airportSelected:{value:0}}
  private readonly objects:(THREE.Mesh|THREE.Points)[]=[]
  private readonly materials:THREE.ShaderMaterial[]=[]
  private readonly trailBuckets:{object:THREE.Mesh;start:number;end:number}[]=[]
@@ -74,6 +75,7 @@ export class GpuAircraftPainter implements AircraftPainter {
   }
   this.canvas.addEventListener('webglcontextlost',this.lost);parent.append(this.canvas)
  }
+ setWatchMode(enabled:boolean){this.uniforms.watching.value=enabled?1:0}
  begin(width:number,height:number,dpr:number,projection:AircraftProjection,time:number){
   const size=`${width}:${height}:${dpr}`
   if(size!==this.size){this.renderer.setPixelRatio(dpr);this.renderer.setSize(width,height,false);this.uniforms.viewport.value.set(width,height);this.uniforms.pixelRatio.value=dpr;this.size=size}

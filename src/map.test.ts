@@ -168,3 +168,14 @@ it('dims context behind matches while keeping counts and picking scoped to the f
  expect(painter.aircraft).toHaveBeenCalledTimes(2)
  expect(map.points.map(p=>p.track.id)).toEqual(['visible'])
 })
+it('watch mode uses the full viewport without changing observations and restores map clearance',()=>{
+ const map=new AirMap(canvas,land,[])
+ const normal=map.draw(tracks,5,undefined,'motion',cells),scale=map.scale
+ map.setWatchMode(true)
+ expect(map.draw(tracks,5,undefined,'motion',cells)).toEqual(normal)
+ expect(map.bottomClearance).toBe(0);expect(map.topClearance).toBe(0);expect(map.scale).toBeGreaterThan(scale)
+ const frames=map.renderedFrames;map.draw(tracks,5,undefined,'motion',cells);expect(map.renderedFrames).toBe(frames)
+ map.setWatchMode(false);map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.bottomClearance).toBe(170);expect(map.scale).toBe(scale)
+ map.dispose()
+})

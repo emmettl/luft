@@ -1,3 +1,4 @@
+import {holdingConfidence,type HoldingIndex} from './holding'
 import { positionForAirTrack, type AirTrack, type AirPosition } from '@motionstudies/core/domain/air'
 import { PausedVehicleFrame } from '@motionstudies/core/render-frame'
 import type { Airport, Land } from './data'
@@ -94,6 +95,8 @@ export class AirMap {
  }
  private resizeDirty=true;private dpr=0;private revision=0
  private projection='';private inputs?:{tracks:AirTrack[];airport?:Airport|readonly Airport[];mode:string;cells:number[][];selected?:string;matchingIds?:ReadonlySet<string>}
+ private holdingTracks:HoldingIndex['tracks']={}
+ setHoldingEvidence(tracks:HoldingIndex['tracks']){this.holdingTracks=tracks;this.revision++}
  private accentTracks:AirTrack[]=[]
  private counts={total:0,inbound:0,outbound:0,visible:0}
  private readonly movements=new MovementAccents()
@@ -157,7 +160,15 @@ export class AirMap {
   for(const country of this.countries)if(this.selectedCountries.includes(country.code)){
    ctx.beginPath();countryPath(country);ctx.fillStyle=this.watching?'#ddc49105':'#ddc49112';ctx.fill('evenodd')
   }
-  if(this.countries.length){ctx.beginPath();for(const country of this.countries)countryPath(country);ctx.strokeStyle=this.watching?'#a4bcc510':'#a4bcc52b';ctx.lineWidth=.55;ctx.stroke()}
+  if(this.countries.length){
+   ctx.beginPath();for(const country of this.countries)countryPath(country)
+   if(this.watching){
+    // Bloom is baked into the geographic backdrop, never blurred per aircraft/frame.
+    ctx.save();ctx.lineJoin='round';ctx.strokeStyle='#419bfa18';ctx.lineWidth=3;ctx.stroke()
+    ctx.shadowColor='#358ff080';ctx.shadowBlur=5*this.dpr
+    ctx.strokeStyle='#71baff70';ctx.lineWidth=.85;ctx.stroke();ctx.restore()
+   }else{ctx.strokeStyle='#8db4d04d';ctx.lineWidth=.75;ctx.stroke()}
+  }
   for(const country of this.countries)if(this.selectedCountries.includes(country.code)){
    ctx.beginPath();countryPath(country);ctx.strokeStyle=this.watching?'#dfc99822':'#dfc99855';ctx.lineWidth=.8;ctx.stroke()
   }
@@ -270,7 +281,8 @@ export class AirMap {
    for(let i=0;i<tracks.length;i++){
     const track=tracks[i],p=positionForAirTrack(track,time),visible=!!p&&!this.outside(track,p)
     const fade=this.accentsEnabled?this.fades.opacity(track,time,accentClock,!!p):1
-    painter.aircraft(i,p,visible,fade)
+    const eligible=this.watching&&track.id!==this.selectedFlight&&(!matchingIds||matchingIds.has(track.id))&&(!hasAirports||!!trackDirection(track,codes))
+    painter.aircraft(i,p,visible,fade,eligible?holdingConfidence(this.holdingTracks[track.id],time):0)
     if(!p||(matchingIds&&!matchingIds.has(track.id)))continue
     const d=trackDirection(track,codes);total++;if(d==='inbound')inbound++;if(d==='outbound')outbound++
     if(visible){const x=this.left+(p.longitude-this.view.west)*.62*this.scale,y=this.top+(this.view.north-p.latitude)*this.scale;if(x>=0&&x<=w&&y>=0&&y<=h)this.points.push({x,y,track})}
@@ -284,14 +296,15 @@ export class AirMap {
    }
    sampling=performance.now()-samplingStarted;const geometryStarted=performance.now()
    for(const layer of layers)for(const [track,p,d,fade] of layer){
-    const dimmed=!!matchingIds&&!matchingIds.has(track.id),selected=!dimmed&&track.id===this.selectedFlight,colour=selected?'#ffffff':d==='inbound'?'#81d9f1':d==='outbound'?'#efbd72':p.altitudeFeet<10000?'#cfac76':'#86bac7'
+    const dimmed=!!matchingIds&&!matchingIds.has(track.id),selected=!dimmed&&track.id===this.selectedFlight,hold=this.watching&&!dimmed&&!selected&&(!hasAirports||d)?holdingConfidence(this.holdingTracks[track.id],time):0,baseColour=selected?'#ffffff':d==='inbound'?'#81d9f1':d==='outbound'?'#efbd72':p.altitudeFeet<10000?'#cfac76':'#86bac7'
+    const colour=hold?`#${[1,3,5].map(i=>Math.round(parseInt(baseColour.slice(i,i+2),16)*(1-hold*.45)+255*hold*.45).toString(16).padStart(2,'0')).join('')}`:baseColour
     const x=this.left+(p.longitude-this.view.west)*.62*this.scale,y=this.top+(this.view.north-p.latitude)*this.scale
     const opacity=dimmed||(hasAirports&&!d&&!selected)?.14:1,width=selected?2:d?1.4:this.watching?.8:.65,radius=selected?3.5:d?2.3:1.2
-    ctx.globalAlpha=opacity*fade;ctx.strokeStyle=colour;ctx.lineWidth=width;ctx.beginPath()
+    ctx.globalAlpha=opacity*fade;ctx.strokeStyle=colour;ctx.lineWidth=width*(1+hold*.6);ctx.beginPath()
     const start=after(track.samples,time-180),end=after(track.samples,time)
     if(end>start){
      const tail=track.samples[start],tx=this.left+(tail[1]-this.view.west)*.62*this.scale,ty=this.top+(this.view.north-tail[2])*this.scale
-     if(Math.hypot(x-tx,y-ty)>1){const trail=ctx.createLinearGradient(tx,ty,x,y);trail.addColorStop(0,`${colour}12`);trail.addColorStop(.45,`${colour}70`);trail.addColorStop(1,`${colour}e0`);ctx.strokeStyle=trail}
+     if(Math.hypot(x-tx,y-ty)>1){const trail=ctx.createLinearGradient(tx,ty,x,y);trail.addColorStop(0,`${colour}${Math.round(18+hold*51).toString(16).padStart(2,'0')}`);trail.addColorStop(.45,`${colour}${Math.round(112+hold*25).toString(16).padStart(2,'0')}`);trail.addColorStop(1,`${colour}e0`);ctx.strokeStyle=trail}
     }
     for(let i=start;i<end;i++){const sample=track.samples[i],sx=this.left+(sample[1]-this.view.west)*.62*this.scale,sy=this.top+(this.view.north-sample[2])*this.scale
      if(i>start&&sample[0]-track.samples[i-1][0]<=45){ctx.lineTo(sx,sy)}else ctx.moveTo(sx,sy)

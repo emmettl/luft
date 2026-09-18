@@ -6,6 +6,8 @@ const vertexBase=`
 uniform vec2 viewport;
 uniform vec4 projection;
 uniform sampler2D aircraftState;
+uniform sampler2D holdingState;
+float hold=0.;
 uniform vec2 stateSize;
 uniform float studyTime;
 uniform float emphasis;
@@ -16,9 +18,11 @@ varying float alpha;
 vec4 state(float index){return texture2D(aircraftState,(vec2(mod(index,stateSize.x),floor(index/stateSize.x))+.5)/stateSize);}
 vec2 project(vec2 p){return p*projection.xy+projection.zw;}
 vec4 screen(vec2 p){return vec4(p.x/viewport.x*2.-1.,1.-p.y/viewport.y*2.,0.,1.);}
-void style(vec4 head,float direction){
+void style(vec4 head,float direction,float index){
+ hold=watching*texture2D(holdingState,(vec2(mod(index,stateSize.x),floor(index/stateSize.x))+.5)/stateSize).r;
  ink=emphasis>1.5?vec3(1.):direction>.5&&direction<1.5?vec3(129.,217.,241.)/255.:direction>1.5?vec3(239.,189.,114.)/255.:head.w<10000.?vec3(207.,172.,118.)/255.:vec3(134.,186.,199.)/255.;
  alpha=emphasis<-.5||(airportSelected>.5&&emphasis<.5)?.14:1.;
+ ink=mix(ink,vec3(1.),hold*.45);
  alpha*=head.z;
 }
 `
@@ -27,7 +31,7 @@ attribute vec3 sampleFrom;
 attribute vec3 positionTo;
 attribute vec2 aircraft;
 void main(){
- vec4 head=state(aircraft.x);style(head,aircraft.y);
+ vec4 head=state(aircraft.x);style(head,aircraft.y,aircraft.x);
  // Canvas starts at the first sample inside the trailing window; it does not
  // interpolate the tail boundary. A sample at studyTime belongs to the head.
  bool visible=head.z>0.&&sampleFrom.z>=studyTime-180.&&sampleFrom.z<studyTime;
@@ -35,14 +39,15 @@ void main(){
  vec2 d=to-from,normal=vec2(-d.y,d.x)/max(length(d),.0001);
  float width=emphasis>1.5?2.:emphasis>.5?1.4:mix(.65,.8,watching);
  float age=clamp((mix(sampleFrom.z,min(positionTo.z,studyTime),position.x)-(studyTime-180.))/180.,0.,1.);
- alpha*=mix(.07,.88,age*age);
+ width*=1.+hold*.6;
+ alpha*=mix(.07+hold*.2,.88,age*age);
  width*=mix(.55,1.,age);
  gl_Position=visible?screen(mix(from,to,position.x)+normal*position.y*width*.5):vec4(2.,2.,0.,1.);
 }`
 const pointVertex=vertexBase+`
 uniform float pixelRatio;
 void main(){
- vec4 head=state(position.x);style(head,position.y);
+ vec4 head=state(position.x);style(head,position.y,position.x);
  ink=mix(ink,vec3(.94,.98,1.),.22);
  gl_Position=head.z>0.?screen(project(head.xy)):vec4(2.,2.,0.,1.);
  gl_PointSize=(emphasis>1.5?11.:watching>.5?4.5:emphasis>.5?2.3:1.2)*2.*pixelRatio;
@@ -56,7 +61,9 @@ export class GpuAircraftPainter implements AircraftPainter {
  private readonly camera=new THREE.Camera()
  private state=new Float32Array(4)
  private texture=new THREE.DataTexture(this.state,1,1,THREE.RGBAFormat,THREE.FloatType)
- private readonly uniforms={watching:{value:0},viewport:{value:new THREE.Vector2(1,1)},projection:{value:new THREE.Vector4()},pixelRatio:{value:1},aircraftState:{value:this.texture},stateSize:{value:new THREE.Vector2(1,1)},studyTime:{value:0},airportSelected:{value:0}}
+ private holding=new Float32Array(1)
+ private holdingTexture=new THREE.DataTexture(this.holding,1,1,THREE.RedFormat,THREE.FloatType)
+ private readonly uniforms={holdingState:{value:this.holdingTexture},watching:{value:0},viewport:{value:new THREE.Vector2(1,1)},projection:{value:new THREE.Vector4()},pixelRatio:{value:1},aircraftState:{value:this.texture},stateSize:{value:new THREE.Vector2(1,1)},studyTime:{value:0},airportSelected:{value:0}}
  private readonly objects:(THREE.Mesh|THREE.Points)[]=[]
  private readonly materials:THREE.ShaderMaterial[]=[]
  private readonly trailBuckets:{object:THREE.Mesh;start:number;end:number}[]=[]
@@ -89,6 +96,8 @@ export class GpuAircraftPainter implements AircraftPainter {
   this.uniforms.airportSelected.value=airportKey?1:0
   const width=Math.min(1024,this.renderer.capabilities.maxTextureSize,Math.max(1,tracks.length)),height=Math.max(1,Math.ceil(tracks.length/width))
   if(height>this.renderer.capabilities.maxTextureSize)throw Error('Aircraft texture exceeds device capacity')
+  this.holdingTexture.dispose();this.holding=new Float32Array(width*height)
+  this.holdingTexture=new THREE.DataTexture(this.holding,width,height,THREE.RedFormat,THREE.FloatType);this.uniforms.holdingState.value=this.holdingTexture
   this.texture.dispose();this.state=new Float32Array(width*height*4)
   this.texture=new THREE.DataTexture(this.state,width,height,THREE.RGBAFormat,THREE.FloatType)
   this.uniforms.aircraftState.value=this.texture;this.uniforms.stateSize.value.set(width,height)
@@ -120,12 +129,13 @@ export class GpuAircraftPainter implements AircraftPainter {
   this.geometryPreparedBytes=this.geometryBytes
  }
  private updateBucketVisibility(){const time=this.uniforms.studyTime.value;for(const bucket of this.trailBuckets)bucket.object.visible=bucket.start<time&&bucket.end>time-180}
- aircraft(index:number,position:AirPosition|undefined,visible:boolean,opacity=1){
+ aircraft(index:number,position:AirPosition|undefined,visible:boolean,opacity=1,holding=0){
+  this.holding[index]=position&&visible?holding:0
   const i=index*4;this.state[i+2]=position&&visible?opacity:0
   if(position&&visible){this.state[i]=position.longitude;this.state[i+1]=position.latitude;this.state[i+3]=position.altitudeFeet}
  }
- end(){this.stateUploadBytes=this.state.byteLength;this.texture.needsUpdate=true;this.renderer.render(this.scene,this.camera)}
+ end(){this.stateUploadBytes=this.state.byteLength;if(this.uniforms.watching.value){this.holdingTexture.needsUpdate=true;this.stateUploadBytes+=this.holding.byteLength}this.texture.needsUpdate=true;this.renderer.render(this.scene,this.camera)}
  clear(){this.renderer.clear();this.renderer.info.reset();this.geometryPreparedBytes=0;this.stateUploadBytes=0}
  stats(){const r=this.renderer.info.render;return {calls:r.calls,triangles:r.triangles,points:r.points,geometryBuilds:this.builds,geometryBytes:this.geometryBytes,geometryPreparedBytes:this.geometryPreparedBytes,stateUploadBytes:this.stateUploadBytes}}
- dispose(){if(this.disposed)return;this.disposed=true;this.canvas.removeEventListener('webglcontextlost',this.lost);for(const object of this.objects)object.geometry.dispose();for(const material of this.materials)material.dispose();this.texture.dispose();this.tracks=undefined;this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.remove()}
+ dispose(){if(this.disposed)return;this.disposed=true;this.canvas.removeEventListener('webglcontextlost',this.lost);for(const object of this.objects)object.geometry.dispose();for(const material of this.materials)material.dispose();this.texture.dispose();this.holdingTexture.dispose();this.tracks=undefined;this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.remove()}
 }

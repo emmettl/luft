@@ -6,7 +6,7 @@ export interface AircraftPainter {
  setWatchMode?(enabled:boolean):void
  begin(width:number,height:number,dpr:number,projection:AircraftProjection,time:number):void
  prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string,matchingIds?:ReadonlySet<string>):void
- aircraft(index:number,position:AirPosition|undefined,visible:boolean,opacity?:number):void
+ aircraft(index:number,position:AirPosition|undefined,visible:boolean,opacity?:number,holding?:number):void
  end():void
  clear():void
  dispose():void

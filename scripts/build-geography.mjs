@@ -1,6 +1,6 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises'
-import {createHash} from 'node:crypto'
 import {gunzipSync} from 'node:zlib'
+import {openAirRelease} from './daily/lib.mjs'
 
 // Read the pinned OurAirports reference, including quoted commas and newlines.
 function csvRows(text){
@@ -15,16 +15,11 @@ function csvRows(text){
  return rows
 }
 const root=new URL('../public/data/',import.meta.url)
-const hash=bytes=>createHash('sha256').update(bytes).digest('hex')
 const lock=JSON.parse(await readFile(new URL('../data-release.json',import.meta.url)))
-const manifestBytes=await readFile(new URL('manifest.json',root))
-if(hash(manifestBytes)!==lock.manifestSha256)throw new Error('Geography requires the pinned recorder manifest')
-const manifest=JSON.parse(manifestBytes)
+// Geography requires the pinned recorder manifest; sources are read through the shared verifier.
+const release=await openAirRelease(root,lock.manifestSha256),manifest=release.manifest
 async function readVerified(descriptor){
- if(!descriptor||! /^[a-zA-Z0-9._-]+$/.test(descriptor.path))throw new Error('Invalid geography source')
- const bytes=await readFile(new URL(descriptor.path,root))
- if(bytes.length!==descriptor.bytes||hash(bytes)!==descriptor.sha256)throw new Error(`Geography source integrity mismatch: ${descriptor.path}`)
- return gunzipSync(bytes).toString('utf8')
+ return gunzipSync(await release.read(descriptor,'Invalid geography source')).toString('utf8')
 }
 const index=JSON.parse(await readVerified(manifest.index))
 const reference=manifest.files.find(file=>file.path==='airports.csv.gz')

@@ -2,12 +2,12 @@
 import {readFile,writeFile} from 'node:fs/promises'
 import {createHash} from 'node:crypto'
 import {gunzipSync} from 'node:zlib'
+import {openAirRelease} from './daily/lib.mjs'
 const root=new URL('../',import.meta.url),digest=bytes=>createHash('sha256').update(bytes).digest('hex')
 const geography={url:'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/geojson/ne_50m_admin_0_countries.geojson',sha256:'3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb'}
 const detailGeography={url:geography.url.replace('ne_50m_', 'ne_10m_'),sha256:'239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255'}
-const lock=JSON.parse(await readFile(new URL('data-release.json',root))),manifestBytes=await readFile(new URL('public/data/manifest.json',root))
-if(digest(manifestBytes)!==lock.manifestSha256)throw Error('Country index requires pinned manifest')
-const manifest=JSON.parse(manifestBytes)
+// Country index requires the pinned manifest; its airport index is read through the shared verifier.
+const lock=JSON.parse(await readFile(new URL('data-release.json',root))),release=await openAirRelease(new URL('public/data/',root),lock.manifestSha256),manifest=release.manifest
 async function source(descriptor,path){
  const response=path?null:await fetch(descriptor.url)
  if(response&&!response.ok)throw Error(`Country source unavailable: ${response.status}`)
@@ -31,8 +31,7 @@ const geometry=JSON.parse(await source(geography,process.argv[2]))
 const reference=csv((await source(manifest.references.airports,process.argv[3])).toString())
 const airportCountries=new Map()
 for(const row of reference){airportCountries.set(row.ident,row.iso_country);if(row.icao_code)airportCountries.set(row.icao_code,row.iso_country)}
-const indexBytes=await readFile(new URL(`public/data/${manifest.index.path}`,root))
-if(digest(indexBytes)!==manifest.index.sha256)throw Error('Country airport index hash mismatch')
+const indexBytes=await release.read(manifest.index)
 const airports=JSON.parse(gunzipSync(indexBytes)).airports
 const contextBounds=[-31,28,51,78],countries=new Map()
 const aliases={GB:['UK','Britain','Great Britain'],CH:['Swiss','Schweiz','Suisse','Svizzera'],CZ:['Czech Republic'],TR:['Türkiye','Turkiye'],NL:['Holland']}

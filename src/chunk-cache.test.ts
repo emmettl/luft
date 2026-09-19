@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from 'vitest'
-import {TrackDiskCache,TRACK_CACHE_NAME} from './chunk-cache'
+import {TrackDiskCache,TRACK_CACHE_NAME,decodeVerified} from './chunk-cache'
 const root=new URL('https://example.test/luft/data/')
 async function fixture(value=1){
  const bytes=new TextEncoder().encode(JSON.stringify({value})).buffer
@@ -13,6 +13,13 @@ function storage(){
  return {entries,cache,api:{open:vi.fn(async()=>cache)} as unknown as CacheStorage}
 }
 describe('verified compressed disk cache',()=>{
+ it('refuses unsafe paths, short downloads and changed bytes',async()=>{
+  const {descriptor,bytes}=await fixture()
+  await expect(decodeVerified(descriptor,bytes)).resolves.toEqual({value:1})
+  await expect(decodeVerified({...descriptor,path:'../1.json'},bytes)).rejects.toThrow('Unsafe')
+  await expect(decodeVerified(descriptor,bytes.slice(1))).rejects.toThrow('Incomplete')
+  await expect(decodeVerified({...descriptor,sha256:'0'.repeat(64)},bytes)).rejects.toThrow('integrity')
+ })
  it('revalidates reused filenames across days while preserving verified local reuse',async()=>{
   const old=await fixture(1),next=await fixture(2),disk=storage()
   next.descriptor.path=old.descriptor.path

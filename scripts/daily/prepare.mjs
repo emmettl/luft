@@ -4,7 +4,7 @@ import {resolve,join,relative,isAbsolute} from 'node:path'
 import {parseArgs} from 'node:util'
 import {execFileSync} from 'node:child_process'
 import {gunzipSync} from 'node:zlib'
-import {json,writeJson,hash,run,download,recordedDate,releaseTag,verifyRelease,verifiedFile} from './lib.mjs'
+import {json,writeJson,hash,run,download,recordedDate,releaseTag,verifyRelease,openAirRelease} from './lib.mjs'
 const {values:v}=parseArgs({options:{date:{type:'string'},recorder:{type:'string'},work:{type:'string'}}})
 if(!v.recorder||!v.work)throw Error('Required: --recorder CHECKOUT --work NEW_WORK_DIRECTORY [--date YYYY-MM-DD]')
 const date=recordedDate(v.date),recorder=resolve(v.recorder),work=resolve(v.work),config=await json('daily-feed.json')
@@ -25,12 +25,12 @@ if(await readFile(join(reference,'manifest.json')).then(b=>hash(b)!==config.refe
  await download(config.referenceRelease.url,archive,{sha256:config.referenceRelease.sha256})
  await run('tar',['-xzf',archive,'-C',reference])
 }
-const referenceBytes=await readFile(join(reference,'manifest.json'))
-if(hash(referenceBytes)!==config.referenceRelease.manifestSha256)throw Error('Reference manifest mismatch')
-const manifest=JSON.parse(referenceBytes),airports=gunzipSync(await verifiedFile(reference,manifest.files.find(f=>f.path==='airports.csv.gz')))
+// The shared verifier pins the reference manifest and checks each input it describes.
+const referenceRelease=await openAirRelease(reference,config.referenceRelease.manifestSha256)
+const manifest=referenceRelease.manifest,airports=gunzipSync(await referenceRelease.read(manifest.files.find(f=>f.path==='airports.csv.gz')))
 if(hash(airports)!==manifest.references.airports.sha256)throw Error('Airport reference mismatch')
 await writeFile(join(work,'airports.csv'),airports)
-await writeFile(join(work,'land.geojson'),await verifiedFile(reference,manifest.land))
+await writeFile(join(work,'land.geojson'),await referenceRelease.read(manifest.land))
 await run(process.execPath,[join(recorder,'scripts/capture-air-day.mjs'),'--date',date,'--store',join(work,'source')])
 await run(process.execPath,[join(recorder,'scripts/release-air-day.mjs'),'--date',date,'--store',join(work,'source'),'--airports',join(work,'airports.csv'),'--land',join(work,'land.geojson'),'--out',release])
 const verified=await verifyRelease(release,date)

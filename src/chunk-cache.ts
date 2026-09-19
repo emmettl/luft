@@ -1,11 +1,13 @@
+import {digestHex,isReleasePath} from '@motionstudies/data/release'
 import type {Descriptor} from './data'
 export const TRACK_CACHE_NAME='luft-track-data-v1'
 export const TRACK_CACHE_LIMIT=512*1024*1024
 function browserStorage(){try{return globalThis.caches}catch{return undefined}}
 export async function decodeVerified<T>(descriptor:Descriptor,bytes:ArrayBuffer):Promise<T>{
+ // Shared release rules: safe relative path, exact size, then SHA-256.
+ if(!isReleasePath(descriptor.path))throw new Error('Unsafe data path')
  if(bytes.byteLength!==descriptor.bytes)throw new Error('Incomplete data download')
- const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('')
- if(hash!==descriptor.sha256)throw new Error('Data integrity check failed')
+ if(await digestHex(bytes)!==descriptor.sha256)throw new Error('Data integrity check failed')
  if(descriptor.path.endsWith('.gz.bin')){
   const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
   return JSON.parse(await new Response(stream).text())

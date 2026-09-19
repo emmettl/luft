@@ -1,7 +1,10 @@
 import {createHash} from 'node:crypto'
 import {readFile,writeFile,mkdir} from 'node:fs/promises'
-import {dirname,join} from 'node:path'
+import {dirname} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {spawn} from 'node:child_process'
+import {digestHex,isReleasePath} from '@motionstudies/data/release'
+import {openRelease,readReleaseFile} from '@motionstudies/data/release-files'
 
 export const hash=bytes=>createHash('sha256').update(bytes).digest('hex')
 export const json=async path=>JSON.parse(await readFile(path,'utf8'))
@@ -18,21 +21,35 @@ export function run(command,args,options={}){
   child.on('error',reject);child.on('exit',(code,signal)=>code===0?resolve():reject(Error(`${command} failed (${signal??code})`)))
  })
 }
-export async function verifiedFile(root,descriptor){
- if(!descriptor||! /^[a-zA-Z0-9._-]+$/.test(descriptor.path))throw Error('Unsafe release path')
- const bytes=await readFile(join(root,descriptor.path))
- if(bytes.length!==descriptor.bytes||hash(bytes)!==descriptor.sha256)throw Error(`Integrity mismatch: ${descriptor.path}`)
- return bytes
+// LUFT releases are flat: one safe segment per path, stricter than the shared isReleasePath.
+export const FLAT_RELEASE_PATH=/^[a-zA-Z0-9._-]+$/
+export const AIR_RELEASE={kind:'air-day-release',schemaVersions:[1]}
+export function flatPath(descriptor,message='Unsafe release path'){
+ if(!descriptor||!FLAT_RELEASE_PATH.test(descriptor.path)||!isReleasePath(descriptor.path))throw Error(message)
+ return descriptor
+}
+// Shared bounded read: safe path, no symlink escape, exact size and SHA-256.
+export async function verifiedFile(root,descriptor,options){
+ flatPath(descriptor)
+ try{return await readReleaseFile(root,descriptor,options)}
+ catch(error){throw Error(`Integrity mismatch: ${descriptor.path} (${error.message})`,{cause:error})}
+}
+// Open the recorded day (optionally pinned to its manifest digest); reads are limited to described, flat paths.
+export async function openAirRelease(root,manifestSha256){
+ const release=await openRelease(root instanceof URL?fileURLToPath(root):root,{...AIR_RELEASE,manifestSha256})
+ return {...release,read:async(descriptor,message)=>release.read(flatPath(descriptor,message))}
 }
 export async function verifyRelease(root,expectedDate){
- const bytes=await readFile(join(root,'manifest.json')),manifest=JSON.parse(bytes)
- if(manifest.kind!=='air-day-release'||manifest.schemaVersion!==1||manifest.date!==expectedDate||manifest.timezone!=='UTC'||manifest.audit.sourceFrames!==8640||manifest.sources.length!==48||manifest.chunks.length!==144)throw Error('Incomplete or mismatched recorded day')
+ const release=await openRelease(root,AIR_RELEASE),{manifest}=release
+ if(manifest.date!==expectedDate||manifest.timezone!=='UTC'||manifest.audit.sourceFrames!==8640||manifest.sources.length!==48||manifest.chunks.length!==144)throw Error('Incomplete or mismatched recorded day')
  if(manifest.audit.aircraft<1||manifest.audit.tracks<1)throw Error('Empty recorded day')
- for(const descriptor of manifest.files)await verifiedFile(root,descriptor)
+ if(!Array.isArray(manifest.files))throw Error('Incomplete or mismatched recorded day')
+ // Every described file (files, chunks, index, land) must be flat and match its bytes.
+ for(const descriptor of release.descriptors)await verifiedFile(root,descriptor)
  for(const [i,chunk] of manifest.chunks.entries()){
   if(chunk.start!==i*600||chunk.end!==(i+1)*600||!manifest.files.some(f=>f.path===chunk.path&&f.sha256===chunk.sha256&&f.bytes===chunk.bytes))throw Error('Incomplete playback coverage')
  }
- return {manifest,manifestSha256:hash(bytes)}
+ return {manifest,manifestSha256:await digestHex(release.manifestBytes)}
 }
 export async function download(url,path,{sha256,maxBytes=512*1024**2}={}){
  const response=await fetch(url,{signal:AbortSignal.timeout(300000)})

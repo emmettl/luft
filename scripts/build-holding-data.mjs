@@ -1,15 +1,13 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises'
-import {createHash} from 'node:crypto'
 import {gunzipSync} from 'node:zlib'
 import {holdingEvidence} from '../src/holding.ts'
-const root=new URL('../public/data/',import.meta.url),digest=b=>createHash('sha256').update(b).digest('hex')
+import {openAirRelease} from './daily/lib.mjs'
+const root=new URL('../public/data/',import.meta.url)
 const lock=JSON.parse(await readFile(new URL('../data-release.json',import.meta.url)))
-const raw=await readFile(new URL('manifest.json',root)),manifest=JSON.parse(raw)
-if(digest(raw)!==lock.manifestSha256)throw Error('Holding analysis requires the pinned manifest')
+// Holding analysis requires the pinned manifest; every input is read through the shared verifier.
+const release=await openAirRelease(root,lock.manifestSha256),manifest=release.manifest
 async function verified(descriptor){
- const bytes=await readFile(new URL(descriptor.path,root))
- if(bytes.length!==descriptor.bytes||digest(bytes)!==descriptor.sha256)throw Error(`Integrity mismatch: ${descriptor.path}`)
- return JSON.parse(gunzipSync(bytes,{maxOutputLength:64*1024**2}))
+ return JSON.parse(gunzipSync(await release.read(descriptor),{maxOutputLength:64*1024**2}))
 }
 const index=await verified(manifest.index),airports=new Map(index.airports.map(a=>[a.icao,a])),metadata=new Map(index.aircraft.map(t=>[t.id,t]))
 const states=new Map(),tracks={},candidates=new Map(),controls=new Map(),naiveIds=new Set(),evaluatedIds=new Set()

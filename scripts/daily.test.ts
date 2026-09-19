@@ -1,8 +1,8 @@
 import {expect,it} from 'vitest'
-import {mkdtemp,writeFile,rm} from 'node:fs/promises'
+import {mkdtemp,writeFile,rm,mkdir,symlink} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {recordedDate,verifyRelease,hash} from './daily/lib.mjs'
+import {recordedDate,verifyRelease,verifiedFile,openAirRelease,hash} from './daily/lib.mjs'
 it('selects the previous UTC day across calendar boundaries and rejects incomplete days',()=>{
  expect(recordedDate('',new Date('2026-01-01T00:01:00Z'))).toBe('2025-12-31')
  expect(recordedDate('',new Date('2024-03-01T23:59:00Z'))).toBe('2024-02-29')
@@ -21,5 +21,29 @@ it('rejects incomplete days, changed payloads and unsafe paths before adoption',
   manifest.audit.sourceFrames++;manifest.chunks[143].end--;await write();await expect(verifyRelease(root,'2026-09-16')).rejects.toThrow('coverage')
   manifest.chunks[143].end++;await write();await writeFile(join(root,'chunk.json'),'bad');await expect(verifyRelease(root,'2026-09-16')).rejects.toThrow('Integrity')
   files[0].path='../outside';await write();await expect(verifyRelease(root,'2026-09-16')).rejects.toThrow('Unsafe')
+  // LUFT keeps flat release paths, stricter than the shared verifier's nested paths.
+  await mkdir(join(root,'nested'));await writeFile(join(root,'nested','chunk.json'),bytes);files[0].path='nested/chunk.json'
+  for(const chunk of manifest.chunks)chunk.path='nested/chunk.json'
+  await write();await expect(verifyRelease(root,'2026-09-16')).rejects.toThrow('Unsafe')
+  // Every descriptor for one path must describe the same bytes.
+  files[0].path='chunk.json';for(const chunk of manifest.chunks)chunk.path='chunk.json'
+  await writeFile(join(root,'chunk.json'),bytes);manifest.chunks[5].bytes++;await write()
+  await expect(verifyRelease(root,'2026-09-16')).rejects.toThrow('Conflicting')
  }finally{await rm(root,{recursive:true,force:true})}
+})
+it('reads pinned, described files only and refuses links out of the release',async()=>{
+ const base=await mkdtemp(join(tmpdir(),'luft-links-')),root=join(base,'release')
+ try{
+  await mkdir(root);const secret=Buffer.from('outside'),inside=Buffer.from('{}')
+  await writeFile(join(base,'secret.json'),secret);await symlink(join(base,'secret.json'),join(root,'link.json'))
+  await expect(verifiedFile(root,{path:'link.json',bytes:secret.length,sha256:hash(secret)})).rejects.toThrow('Integrity mismatch')
+  await writeFile(join(root,'index.json'),inside)
+  const manifest=Buffer.from(JSON.stringify({kind:'air-day-release',schemaVersion:1,index:{path:'index.json',bytes:inside.length,sha256:hash(inside)}}))
+  await writeFile(join(root,'manifest.json'),manifest)
+  await expect(openAirRelease(root,hash(Buffer.from('other')))).rejects.toThrow('pinned digest')
+  const release=await openAirRelease(root,hash(manifest))
+  await expect(release.read(release.manifest.index)).resolves.toEqual(inside)
+  await expect(release.read({path:'link.json',bytes:secret.length,sha256:hash(secret)})).rejects.toThrow('not described')
+  await expect(release.read(undefined,'Invalid geography source')).rejects.toThrow('Invalid geography source')
+ }finally{await rm(base,{recursive:true,force:true})}
 })

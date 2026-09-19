@@ -64,7 +64,7 @@ npm run data:fetch
 npm run dev
 ```
 
-The app is served beneath `/luft/`. `npm run data:fetch` downloads the **explicitly pinned** recorder archive in `data-release.json`, verifies its archive and manifest hashes, then verifies every file. Existing local data is checked, never silently overwritten. `public/data/` is generated and ignored. No sibling checkout, private API key or recorder runtime is needed.
+The app is served beneath `/luft/`. `npm run data:fetch` downloads the **explicitly pinned** recorder archive in `data-release.json`, verifies its archive and manifest hashes, then verifies every described file with the shared `@motionstudies/data/release-files` verifier (bounded reads, no links out of the release, exact size and SHA-256). LUFT additionally keeps its release paths flat. Existing local data is checked, never silently overwritten. `public/data/` is generated and ignored. No sibling checkout, private API key or recorder runtime is needed.
 
 ```sh
 npm run build

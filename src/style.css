@@ -204,3 +204,20 @@ body:has(.study[data-watch])>.new-day,body:has(.study[data-watch]) .new-day{disp
 }
 .settings-toggle .view-label{font-size:inherit}
 @media(max-width:359px){.study{--dock-clearance:264px}.stage canvas{--luft-map-bottom:266px}}
+/* Selected journeys retain the instrument palette and reveal a compact profile. */
+.flight-caption{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;width:280px;padding:14px 16px;max-width:calc(100% - 32px)}
+.flight-caption>strong{padding-right:30px;grid-column:1/-1}.flight-caption>.endpoint-caption{grid-column:1/-1}.flight-caption>span:not(.endpoint-caption){font-size:9px;align-self:center}
+.flight-caption .clear-aircraft{position:absolute;right:4px;top:4px;min-width:44px;min-height:44px;margin:0}
+.flight-caption .follow-flight{position:static;width:auto;font-size:10px;min-height:44px;margin:0;padding:8px;border:1px solid #d6be8c50;color:#f0debc;background:#d6be8c0c}
+.flight-caption .follow-flight[aria-pressed=true]{background:#d6be8c25}
+.flight-profile{grid-column:1/-1;border-top:1px solid #d6be8c25;padding-top:8px}
+.flight-profile>div{display:flex;justify-content:space-between;font:8px ui-monospace,monospace;color:#a4b7c2}
+.flight-profile svg{display:block;width:100%;height:48px;margin:5px 0;overflow:visible}
+.flight-profile polyline{fill:none;stroke:#e5c99c;stroke-width:1.2;stroke-linejoin:round}
+.profile-baseline{stroke:#344b59;stroke-width:.7}.profile-playhead{stroke:#ecdfc9;stroke-width:1;stroke-dasharray:2 2}
+@media(max-width:700px){.flight-caption{width:250px;padding:10px 12px;gap:5px 10px}.flight-profile svg{height:32px}}
+@media(max-height:620px){.flight-profile{display:none}.scene-caption p{display:none}}
+@media(max-width:999px){
+ .study:has(.flight-caption) .context-panels,.study:has(.flight-caption) .selection-summary,.study:has(.flight-caption) .board-launchers{display:none}
+ .study:has(.flight-caption) .filter-pills{max-height:44px}
+}

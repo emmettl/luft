@@ -1,5 +1,5 @@
 export type ActivityBin={time:number;count:number}
-export type Moment={id:string;time:number;title:string;caption:string}
+export type Moment={id:string;time:number;title:string;caption:string;endTime?:number;airport?:string}
 export const momentTime=(time:number)=>`${String(Math.floor(time/3600)).padStart(2,'0')}:${String(Math.floor(time/60)%60).padStart(2,'0')}`
 
 /** Describe only this day's observed snapshots, with earliest-time tie breaking. */

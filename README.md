@@ -40,6 +40,14 @@ Open **Moments** for a short tour of the recorded day: its quietest and busiest 
 
 Choose **Explore** to pause at that moment in Motion view and return to the study-wide map, keeping your filters. For a rise or fall, the jump starts the one-hour interval. Press **Play** to watch it unfold. Counts describe observations, not scheduled flights or proof of empty skies; reception gaps can affect them.
 
+### Guided scenes and aircraft following
+
+Moments now also finds the busiest observed half-hour arrival and departure windows around airports within the current selection. These windows count distinct aircraft with known observed endpoint times, require at least three aircraft, and break ties by earliest time. **Explore** frames the airport and pauses; **Watch this unfold** frames the scene, uses one recorded minute per second, and pauses at its end. Day-wide scenes run for up to an hour. The scene card shows progress; scrubbing, changing filters or manually moving the map returns to exploration. Endpoint times remain observations, not scheduled or confirmed takeoff/landing events.
+
+Select an aircraft and choose **Follow aircraft** to play its observed journey with a gently tracking camera. The current time is retained if it lies inside the journey; otherwise playback starts at its first observation. Follow pauses at the final recorded boundary. Pausing playback keeps the camera attached; dragging, zooming, choosing a regional view or fitting the route releases it. Missing observations hold the last camera position, and reduced-motion preferences remove camera easing.
+
+The selected-flight card includes an altitude profile and time marker. It loads with the existing on-demand route file, preserving observation gaps. Route simplification now also retains altitude changes to approximately 250 feet; the profile is a compact view of recorded altitude, not terrain clearance or an extrapolated flight path.
+
 ## Compare renderers
 
 Open **View → Aircraft renderer** to switch between Canvas and the optional Three.js aircraft layer. The clock, view and selections stay in place. [Open Three.js](https://emmettl.github.io/luft/?renderer=three) or [Canvas](https://emmettl.github.io/luft/?renderer=canvas). **Device details** provides resettable timings and **Copy results** for real-device comparisons. See [the comparison guide](docs/COMPARISON.md).

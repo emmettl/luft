@@ -190,3 +190,26 @@ it('emphasizes possible holds only in Watch, without overriding filters or expli
  map.selectedFlight='hold';map.draw(sample,65,undefined,'motion',cells);expect(painter.aircraft.mock.lastCall?.[4]).toBe(0)
  map.dispose()
 })
+it('follows observed positions, holds through gaps, and releases on manual camera changes',()=>{
+ const map=new AirMap(canvas,land,[])
+ map.setMotionEffectsEnabled(false);map.selectedFlight='visible';map.followFlight('visible')
+ map.draw(tracks,5,undefined,'motion',cells)
+ expect((map.view.west+map.view.east)/2).toBeCloseTo(.5)
+ expect((map.view.north+map.view.south)/2).toBeCloseTo(50)
+ const held={...map.view}
+ map.draw([],60,undefined,'motion',cells);expect(map.view).toEqual(held)
+ map.pan(10,0);expect(map.followedFlight).toBeUndefined()
+ map.followFlight('visible');map.zoom(.8);expect(map.followedFlight).toBeUndefined()
+ map.followFlight('visible');map.transitionTo(EUROPE);expect(map.followedFlight).toBeUndefined()
+ map.followFlight('visible');map.selectedFlight='another';map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.followedFlight).toBeUndefined();map.dispose()
+})
+it('places a followed aircraft in the uncovered phone map area',()=>{
+ canvas.getBoundingClientRect=()=>({width:390,height:664}) as DOMRect
+ const map=new AirMap(canvas,land,[])
+ map.setMotionEffectsEnabled(false);map.draw(tracks,5,undefined,'motion',cells)
+ map.selectedFlight='visible';map.setFollowScreenY(195);map.followFlight('visible')
+ map.draw(tracks,5,undefined,'motion',cells)
+ expect(map.project(.5,50)[1]).toBeCloseTo(195)
+ map.dispose()
+})

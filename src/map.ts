@@ -37,6 +37,25 @@ export class AirMap {
  private painter?:AircraftPainter
  private baseKey=''
  private flightRoute?:FlightRoute
+ private followScreenY?:number
+ setFollowScreenY(y?:number){this.followScreenY=y}
+ followedFlight?:string
+ followFlight(id?:string){this.followedFlight=id;this.camera=undefined}
+ private advanceFollow(tracks:AirTrack[],time:number,mode:string){
+  if(!this.followedFlight)return
+  if(mode!=='motion'||this.followedFlight!==this.selectedFlight){this.followFlight();return}
+  const track=tracks.find(track=>track.id===this.followedFlight),position=track&&positionForAirTrack(track,time)
+  if(!position)return // Hold the last camera position through an observation gap.
+  const {longitude:x,latitude:y}=position,w=12,h=8
+  const frameHeight=Math.max(1,this.height-this.topClearance-Math.min(this.height*.4,this.bottomClearance))
+  const scale=Math.min(this.width/(w*.62),frameHeight/h)
+  const centreY=this.topClearance+frameHeight/2,offset=this.followScreenY===undefined?0:(this.followScreenY-centreY)/scale
+  const target={west:x-w/2,east:x+w/2,south:y+offset-h/2,north:y+offset+h/2}
+  for(const key of ['west','east','south','north'] as const){
+   const delta=target[key]-this.view[key]
+   this.view[key]=!this.accentsEnabled||Math.abs(delta)<.0001?target[key]:this.view[key]+delta*.14
+  }
+ }
  setFlightRoute(route?:FlightRoute){this.flightRoute=route;this.baseKey='';this.revision++}
  frameFlightRoute(){
   if(!this.flightRoute||this.flightRoute.id!==this.selectedFlight)return
@@ -110,6 +129,7 @@ export class AirMap {
  setDaylightEnabled(enabled:boolean){if(this.daylightEnabled!==enabled){this.daylightEnabled=enabled;this.baseKey='';this.revision++}}
  setMotionEffectsEnabled(enabled:boolean){if(enabled!==this.accentsEnabled){this.accentsEnabled=enabled;if(!enabled&&this.camera){this.view=this.camera.to;this.camera=undefined}this.resetMotionEffects()}}
  transitionTo(to:View){
+  this.followedFlight=undefined
   if(!this.accentsEnabled){this.view={...to};this.camera=undefined;return}
   this.camera={from:{...this.view},to:{...to},started:performance.now()}
  }
@@ -198,6 +218,7 @@ export class AirMap {
  }
  project(lon:number,lat:number){return [this.left+(lon-this.view.west)*.62*this.scale,this.top+(this.view.north-lat)*this.scale]}
  zoom(factor:number){
+  this.followFlight()
   if(!Number.isFinite(factor)||factor<=0)return
   this.camera=undefined
   const bounds=this.studyBounds,aspect=(this.view.east-this.view.west)/(this.view.north-this.view.south)
@@ -206,7 +227,7 @@ export class AirMap {
   const cy=Math.max(bounds.south+h/2,Math.min(bounds.north-h/2,(this.view.south+this.view.north)/2))
   this.view={west:cx-w/2,east:cx+w/2,south:cy-h/2,north:cy+h/2}
  }
- pan(dx:number,dy:number){this.camera=undefined;const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
+ pan(dx:number,dy:number){this.followFlight();const x=dx/(.62*this.scale),y=dy/this.scale;this.view={west:this.view.west-x,east:this.view.east-x,south:this.view.south+y,north:this.view.north+y}}
  focus(airport:Airport){this.transitionTo({west:airport.longitude-8,east:airport.longitude+8,south:airport.latitude-5,north:airport.latitude+5})}
  frameAirports(airports:readonly Airport[]){
   if(!airports.length){this.transitionTo(this.studyBounds);return}
@@ -252,7 +273,7 @@ export class AirMap {
    this.top+(this.view.north-Math.max(extent.north,p.latitude))*this.scale > this.height+4
  }
  draw(tracks:AirTrack[],time:number,airport:Airport|readonly Airport[]|undefined,mode:string,cells:number[][],accentClock=0,matchingIds?:ReadonlySet<string>) {
-  const started=performance.now();this.advanceCamera(started);this.fit()
+  const started=performance.now();this.advanceCamera(started);this.advanceFollow(tracks,time,mode);this.fit()
   const selectedAirports:readonly Airport[]=airport?(Array.isArray(airport)?airport:[airport as Airport]):[],explicitCodes=selectedAirports.map(a=>a.icao),codes=[...new Set([...explicitCodes,...this.countryAirportCodes])],hasAirports=codes.length>0
   if(!this.watching)this.updateAirportLabels(explicitCodes)
   const previous=this.inputs

@@ -78,7 +78,7 @@ test('compact phone layout reserves map space and boards scroll clear of the tim
  await page.screenshot({path:`test-results/${test.info().project.name}-compact-swiss.png`,fullPage:true})
  await add(page,'ZRH',/^ZRH Zurich/);await page.getByRole('button',{name:'ZRH board'}).click()
  await page.locator('.association-note').scrollIntoViewIfNeeded();await expect(page.locator('.association-note')).toBeInViewport()
- const board=await page.locator('.airport-panel').boundingBox(),slider=await page.getByRole('slider').boundingBox()
+ const board=await page.locator('.airport-panel').boundingBox(),slider=await page.getByRole('slider',{name:'Time of day UTC'}).boundingBox()
  expect(board!.y+board!.height).toBeLessThan(slider!.y)
  await expect(page.locator('.play')).toBeInViewport()
  await page.getByRole('button',{name:'Close airport board'}).click()
@@ -86,35 +86,35 @@ test('compact phone layout reserves map space and boards scroll clear of the tim
  await page.getByRole('button',{name:'Show activity as a line'}).click()
  await page.getByRole('button',{name:'Close view settings'}).click()
  await expect(page.locator('.ms-study-timeline svg polyline').first()).toBeVisible()
- await page.getByRole('slider').press('Home');await expect(page.getByRole('slider')).toHaveValue('0')
- await page.getByRole('slider').fill('43200');await expect(page.getByRole('slider')).toHaveValue('43200')
+ await page.getByRole('slider',{name:'Time of day UTC'}).press('Home');await expect(page.getByRole('slider',{name:'Time of day UTC'})).toHaveValue('0')
+ await page.getByRole('slider',{name:'Time of day UTC'}).fill('43200');await expect(page.getByRole('slider',{name:'Time of day UTC'})).toHaveValue('43200')
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true)
 })
 
 test('missing next chunk holds the last frame and offers a working retry',async({page})=>{
  await page.route('**/chunk-043.json.gz.bin',route=>route.fulfill({status:503,body:'unavailable'}))
  await ready(page)
- await page.getByRole('slider').fill('25795');await page.getByRole('combobox',{name:'Playback speed'}).selectOption('900');await page.locator('.play').click()
+ await page.getByRole('slider',{name:'Time of day UTC'}).fill('25795');await page.getByRole('combobox',{name:'Playback speed'}).selectOption('900');await page.locator('.play').click()
  await expect(page.locator('.stream-status')).toContainText('Retry')
  // The one-second slider rounds 07:09:59.5 up; the map clock still reflects the held frame.
  await expect(page.locator('.clock')).toContainText('07:09')
- expect(Number(await page.getByRole('slider').inputValue())).toBeLessThanOrEqual(25800)
+ expect(Number(await page.getByRole('slider',{name:'Time of day UTC'}).inputValue())).toBeLessThanOrEqual(25800)
  await expect(page.locator('.initial-loading')).toHaveCount(0)
  await page.unroute('**/chunk-043.json.gz.bin');await page.getByRole('button',{name:'Retry',exact:true}).click();await expect(page.locator('.stream-status')).toContainText('Paused')
- expect(Number(await page.getByRole('slider').inputValue())).toBeGreaterThanOrEqual(25800)
+ expect(Number(await page.getByRole('slider',{name:'Time of day UTC'}).inputValue())).toBeGreaterThanOrEqual(25800)
 })
 
 test('fast streaming and midnight loops preserve multiple filters',async({page})=>{
  await ready(page);await add(page,'swiss',/^SWISS/);await add(page,'easyJet',/^easyJet/)
  await page.getByRole('combobox',{name:'Playback speed'}).selectOption('900')
- await page.getByRole('slider').fill('28500');await page.locator('.play').click()
- await expect.poll(async()=>Number(await page.getByRole('slider').inputValue())).toBeGreaterThan(29500)
+ await page.getByRole('slider',{name:'Time of day UTC'}).fill('28500');await page.locator('.play').click()
+ await expect.poll(async()=>Number(await page.getByRole('slider',{name:'Time of day UTC'}).inputValue())).toBeGreaterThan(29500)
  await expect(page.locator('.initial-loading')).toHaveCount(0);await page.locator('.play').click()
  for(const speed of ['60','900']){
   await page.getByRole('combobox',{name:'Playback speed'}).selectOption(speed)
-  await page.getByRole('slider').fill('86399');await expect(page.locator('.stream-status')).toHaveText('Paused')
-  await expect(page.getByRole('slider')).toHaveValue('86399');await page.locator('.play').click()
-  await expect.poll(async()=>Number(await page.getByRole('slider').inputValue())).toBeLessThan(600)
+  await page.getByRole('slider',{name:'Time of day UTC'}).fill('86399');await expect(page.locator('.stream-status')).toHaveText('Paused')
+  await expect(page.getByRole('slider',{name:'Time of day UTC'})).toHaveValue('86399');await page.locator('.play').click()
+  await expect.poll(async()=>Number(await page.getByRole('slider',{name:'Time of day UTC'}).inputValue())).toBeLessThan(600)
   await expect(page.locator('.play')).toHaveText('Pause');await page.locator('.play').click()
   await expect(page.locator('.filter-pill')).toHaveCount(2)
  }
@@ -152,7 +152,7 @@ test('search results resize above the phone keyboard viewport',async({page})=>{
 
 test('laptop transport stays shallow with readable controls and a usable scrub target',async({page})=>{
  await page.setViewportSize({width:1366,height:700});await ready(page)
- const footer=await page.locator('footer').boundingBox(),slider=await page.getByRole('slider').boundingBox()
+ const footer=await page.locator('footer').boundingBox(),slider=await page.getByRole('slider',{name:'Time of day UTC'}).boundingBox()
  expect(footer!.height).toBeLessThan(145);expect(slider!.height).toBeGreaterThanOrEqual(44)
  for(const control of [page.locator('.play'),page.getByRole('combobox',{name:'Playback speed'}),page.getByRole('button',{name:'View settings',exact:true})]){
   const box=await control.boundingBox();expect(box!.height).toBeGreaterThanOrEqual(44)
@@ -162,7 +162,7 @@ test('laptop transport stays shallow with readable controls and a usable scrub t
  await page.getByRole('button',{name:'View settings',exact:true}).click()
  const panel=await page.locator('.view-settings').boundingBox();expect(panel!.y+panel!.height).toBeLessThan(footer!.y)
  await page.getByRole('button',{name:'Close view settings'}).click()
- await page.getByRole('slider').fill('43200');await expect(page.getByRole('slider')).toHaveValue('43200')
+ await page.getByRole('slider',{name:'Time of day UTC'}).fill('43200');await expect(page.getByRole('slider',{name:'Time of day UTC'})).toHaveValue('43200')
  await page.screenshot({path:`test-results/${test.info().project.name}-laptop.png`,fullPage:true})
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight)).toBe(true)
 })

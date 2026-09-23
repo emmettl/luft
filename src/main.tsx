@@ -29,6 +29,12 @@ import {SoundControl,useSoundtrack} from './SoundControl'
 import '@motionstudies/web/study-timeline.css'
 import './style.css'
 import {version} from '../package.json'
+import {airportActivity,type ActivitySeries} from './activity'
+import {ActivityChart} from './ActivityChart'
+import {ComparisonPanel} from './ComparisonPanel'
+import {AIRLINES,airlineForTrack,type AirlineId} from './airlines'
+import {sceneDay,sceneFromHash,sceneHash} from './scene-url'
+import {exportScene} from './scene-export'
 const percentile=(values:number[],fraction=.95)=>{const sorted=values.slice().sort((a,b)=>a-b);return sorted[Math.min(sorted.length-1,Math.floor(sorted.length*fraction))]??0}
 const formatActivity=(n:number)=>`${n.toLocaleString()} aircraft`
 type Release=Awaited<ReturnType<typeof loadRelease>>
@@ -45,28 +51,35 @@ function App(){
   window.addEventListener('focus',check);document.addEventListener('visibilitychange',check)
   return()=>{disposed=true;clearInterval(timer);window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check)}
  },[release])
+ const sharedDay=sceneDay(location.hash)
+ if(release&&sharedDay&&sharedDay!==release.manifest.date)return <main className="opening"><span className="eyebrow">Motion Studies / shared scene</span><h1>LUFT</h1><p>This scene was recorded on {sharedDay}.</p><p>The available day is now {release.manifest.date}. The original scene cannot be replayed from this edition.</p><button onClick={()=>{history.replaceState(null,'',location.pathname+location.search);location.reload()}}>Explore the current day</button></main>
  return <>{release?<Study release={release}/>:<main className="opening"><span className="eyebrow">Motion Studies / research</span><h1>LUFT</h1><p role="status">{error||'Opening a day over Europe…'}</p>{error&&<button onClick={()=>location.reload()}>Retry</button>}</main>}{newDay&&<button className="new-day" onClick={()=>location.reload()}>New recorded day · {newDay} · Refresh</button>}</>
 }
 function Study({release}:{release:Release}) {
  const sound=useSoundtrack()
  const {manifest,index,land,snapshots,countries,enrichment,holding}=release,canvas=useRef<HTMLCanvasElement>(null),accentCanvas=useRef<HTMLCanvasElement>(null),map=useRef<AirMap|null>(null)
+ const flightIds=useMemo(()=>new Set(index.aircraft.map(track=>track.id)),[index])
+ const initialScene=useMemo(()=>sceneFromHash(location.hash,manifest.date,flightIds),[manifest.date,flightIds])
  const store=useMemo(()=>new ChunkStore(manifest.chunks),[manifest])
- const engine=useRef({time:7*3600,accentClock:0,playing:true,scrubbing:false,speed:300,chunk:undefined as Chunk|undefined,chunkIndex:-1,targetTime:7*3600,generation:0,waiting:false,airports:[] as Airport[],mode:'motion',dimOthers:true,flight:'',selectedIds:undefined as Set<string>|undefined,cells:index.cells,scene:undefined as Moment|undefined,sceneAirport:undefined as Airport|undefined,followEnd:86400})
- const [ui,setUi]=useState({time:7*3600,playing:true,waiting:true,total:0,inbound:0,outbound:0,visible:0,cache:0,ms:0,responseBytes:0,following:''})
- const [status,setStatus]=useState('Loading observations…'),[speed,setSpeed]=useState(300),[mode,setMode]=useState('motion'),[airport,setAirport]=useState<Airport>(),[flight,setFlight]=useState(''),[diagnostics,setDiagnostics]=useState(false)
+ const engine=useRef({time:initialScene?.time??7*3600,accentClock:0,playing:!initialScene,scrubbing:false,speed:300,chunk:undefined as Chunk|undefined,chunkIndex:-1,targetTime:initialScene?.time??7*3600,generation:0,waiting:false,airports:[] as Airport[],mode:initialScene?.mode??'motion',dimOthers:initialScene?.dimOthers??true,flight:'',selectedIds:undefined as Set<string>|undefined,cells:index.cells,scene:undefined as Moment|undefined,sceneAirport:index.airports.find(airport=>airport.icao===initialScene?.focus),followEnd:86400})
+ const [ui,setUi]=useState({time:initialScene?.time??7*3600,playing:!initialScene,waiting:true,total:0,inbound:0,outbound:0,visible:0,cache:0,ms:0,responseBytes:0,following:''})
+ const [status,setStatus]=useState('Loading observations…'),[speed,setSpeed]=useState(300),[mode,setMode]=useState(initialScene?.mode??'motion'),[airport,setAirport]=useState<Airport>(),[flight,setFlight]=useState(initialScene?.flight??''),[diagnostics,setDiagnostics]=useState(false)
  const [scene,setScene]=useState<Moment>()
- const clearScene=()=>{engine.current.scene=undefined;engine.current.sceneAirport=undefined;setScene(undefined)}
+ const clearScene=()=>{setShareOpen(false);engine.current.scene=undefined;engine.current.sceneAirport=undefined;setScene(undefined)}
  const studySurface=useRef<HTMLElement>(null),watchPlayback=useRef<{mode:string;playing:boolean;speed:number}|undefined>(undefined)
  const watch=useWatchMode(studySurface,()=>{
   clearScene();map.current?.followFlight();const e=engine.current;watchPlayback.current={mode:e.mode,playing:e.playing,speed:e.speed}
   e.mode='motion';e.playing=true;e.speed=60;setMode('motion');setSpeed(60)
   map.current?.setWatchMode(true)
  },()=>{
-  const saved=watchPlayback.current;if(saved){Object.assign(engine.current,saved);setMode(saved.mode);setSpeed(saved.speed)}
+  const saved=watchPlayback.current;if(saved){Object.assign(engine.current,saved);setMode(saved.mode as 'motion'|'density');setSpeed(saved.speed)}
   map.current?.setWatchMode(false)
  })
  const filterOptions=useMemo(()=>({...selectionOptions(index,countries.map(country=>country.code)),endpointAirports:new Set(enrichment.airports.map(a=>a.icao))}),[index,enrichment,countries])
- const [selection,setSelection]=useState<Selection>(()=>selectionFromHash(location.hash,filterOptions)),[settings,setSettings]=useState(false),[dimOthers,setDimOthers]=useState(true)
+ const [selection,setSelection]=useState<Selection>(()=>selectionFromHash(location.hash,filterOptions)),[settings,setSettings]=useState(false),[dimOthers,setDimOthers]=useState(initialScene?.dimOthers??true)
+ const [compare,setCompare]=useState(new URLSearchParams(location.hash.slice(1)).get('compare')==='1')
+ const comparing=compare&&selection.airlines.length===2&&mode==='motion'
+ const [shareOpen,setShareOpen]=useState(false),[shareLink,setShareLink]=useState(''),[shareNote,setShareNote]=useState(''),[exporting,setExporting]=useState(false)
  const [renderer,setRenderer]=useState<'canvas'|'three'>('canvas'),[rendererLoading,setRendererLoading]=useState(false),[rendererNote,setRendererNote]=useState(''),[copyNote,setCopyNote]=useState('')
  const rendererGeneration=useRef(0),metrics=useRef({intervals:[] as number[],lastPaint:0,bufferSeconds:0})
  const resetMeasurements=()=>{map.current?.resetMeasurements();metrics.current={intervals:[],lastPaint:0,bufferSeconds:0};setUi(p=>({...p,ms:0}));setCopyNote('')}
@@ -86,7 +99,8 @@ function Study({release}:{release:Release}) {
  const [endpointFilter,setEndpointFilter]=useState<EndpointFilter>(()=>endpointFromHash(location.hash,filterOptions)),[endpointsOpen,setEndpointsOpen]=useState(false)
  const resolveEndpoint=useMemo(()=>createEndpointResolver(enrichment),[enrichment])
  const changeEndpointFilter=(value:EndpointFilter)=>{clearScene();map.current?.followFlight();writeFilterUrl(selection,value);setEndpointFilter(value);setFlight('');if(map.current){map.current.selectedFlight=undefined;map.current.resetMotionEffects()}}
- const [daylight,setDaylight]=useState(true)
+ const [daylight,setDaylight]=useState(initialScene?.daylight??true)
+ useEffect(()=>setShareOpen(false),[selection,endpointFilter,daylight,dimOthers,flight,comparing])
  const [chartStyle,setChartStyle]=useState<'bars'|'line'>('bars')
  const countryIds=useMemo(()=>countryAirportIds(countries,selection.countries),[countries,selection.countries])
  const selectedCountries=useMemo(()=>countries.filter(c=>selection.countries.includes(c.code)),[countries,selection.countries])
@@ -101,9 +115,13 @@ function Study({release}:{release:Release}) {
  const selectedAirports=useMemo(()=>index.airports.filter(a=>selection.airports.includes(a.icao)),[index,selection.airports])
  const summary=useMemo(()=>selectionActivity(selectedAircraft,snapshots),[selectedAircraft,snapshots])
  const scenes=useMemo(()=>airportMoments(selectedAircraft,index.airports),[selectedAircraft,index.airports])
+ const comparisonGroups=useMemo(()=>comparing?new Map(selectedAircraft.map(track=>[track.id,selection.airlines.indexOf(airlineForTrack(track)!)+1])):undefined,[comparing,selectedAircraft,selection.airlines])
+ const comparisonSeries=useMemo<ActivitySeries[]>(()=>comparing?selection.airlines.map((id,i)=>({label:AIRLINES.find(airline=>airline.id===id)!.name,colour:i?'#efbd72':'#81d9f1',dashed:!!i,values:selectionActivity(selectedAircraft.filter(track=>airlineForTrack(track)===id),snapshots).bins.map(bin=>bin.count)})):[],[comparing,selection.airlines,selectedAircraft,snapshots])
+ useEffect(()=>{map.current?.setComparison(comparisonGroups)},[comparisonGroups])
  const routes=useMemo(()=>observedRoutes(index.aircraft,index.airports),[index])
  const selectionLabel=[endpointFilterTitle(endpointFilter,enrichment.airports.find(a=>a.icao===endpointFilter.airport)?.iata||endpointFilter.airport),airlineLabel(selection.airlines),selection.airports.map(code=>index.airports.find(a=>a.icao===code)?.iata||code).join(' + '),selection.routes.map(id=>routes.find(r=>r.id===id)!.label).join(' + '),selection.countries.map(code=>countries.find(c=>c.code===code)?.name||countryLabel(code)).join(' + '),selection.continents.map(continentLabel).join(' + ')].filter(Boolean).join(' · ')
  const timelineBins=useMemo(()=>summary.bins.map(bin=>({start:bin.time,end:bin.time+300,value:bin.count})),[summary])
+ const airportSeries=useMemo(()=>airport?airportActivity(selectedAircraft,airport.icao):[],[selectedAircraft,airport])
  const board=useMemo(()=>airport?airportBoardMovements(selectedAircraft,airport):{departures:[],arrivals:[]},[selectedAircraft,airport])
  const [boardOpen,setBoardOpen]=useState(false)
  useEffect(()=>{engine.current.selectedIds=selectedIds;engine.current.airports=selectedAirports;engine.current.cells=summary.cells},[selectedIds,selectedAirports,summary])
@@ -114,19 +132,52 @@ function Study({release}:{release:Release}) {
   map.current?.resetMotionEffects();setSelection(value);setFlight('');if(map.current)map.current.selectedFlight=undefined
   if(airport&&!value.airports.includes(airport.icao)){setAirport(undefined);setBoardOpen(false)}
  },[airport,selection,countries,index])
- const writeFilterUrl=(value:Selection,endpoint:EndpointFilter)=>{
-  const url=new URL(location.href);url.hash=selectionHash(value,endpoint)
+ const writeFilterUrl=(value:Selection,endpoint:EndpointFilter,comparison=compare)=>{
+  const url=new URL(location.href),params=new URLSearchParams(selectionHash(value,endpoint).replace(/^#/,''))
+  if(comparison&&value.airlines.length===2)params.set('compare','1')
+  url.hash=params.toString()
   if(url.href!==location.href)history.pushState(null,'',url)
  }
  const changeSelection=(value:Selection)=>{writeFilterUrl(value,endpointFilter);applySelection(value)}
- const clearFilters=()=>{writeFilterUrl(EMPTY_SELECTION,EMPTY_ENDPOINT_FILTER);applySelection(EMPTY_SELECTION);setEndpointFilter(EMPTY_ENDPOINT_FILTER)}
+ const clearFilters=()=>{setCompare(false);writeFilterUrl(EMPTY_SELECTION,EMPTY_ENDPOINT_FILTER);applySelection(EMPTY_SELECTION);setEndpointFilter(EMPTY_ENDPOINT_FILTER)}
  useEffect(()=>{
-  const restore=()=>{applySelection(selectionFromHash(location.hash,filterOptions));setEndpointFilter(endpointFromHash(location.hash,filterOptions))}
+  const restore=()=>{
+   const date=sceneDay(location.hash);if(date&&date!==manifest.date){location.reload();return}
+   applySelection(selectionFromHash(location.hash,filterOptions));setEndpointFilter(endpointFromHash(location.hash,filterOptions));setCompare(new URLSearchParams(location.hash.slice(1)).get('compare')==='1')
+   const shared=sceneFromHash(location.hash,manifest.date,flightIds)
+   if(shared){
+    engine.current.playing=false;engine.current.mode=shared.mode;engine.current.dimOthers=shared.dimOthers;setMode(shared.mode);setDimOthers(shared.dimOthers);setDaylight(shared.daylight);setFlight(shared.flight??'')
+    if(map.current){map.current.followFlight();if(shared.view)map.current.view=shared.view;map.current.selectedFlight=shared.flight;map.current.setDaylightEnabled(shared.daylight)}
+    engine.current.sceneAirport=index.airports.find(airport=>airport.icao===shared.focus)
+    void seek(shared.time,false,true)
+   }
+  }
   window.addEventListener('hashchange',restore)
   return()=>window.removeEventListener('hashchange',restore)
- },[filterOptions,applySelection])
+ },[filterOptions,applySelection,manifest.date,flightIds])
+ const changeComparison=(enabled:boolean,pair:AirlineId[]=selection.airlines.length===2?selection.airlines:['swiss','easyjet'])=>{
+  if(pair.length!==2||pair[0]===pair[1])return
+  const next=enabled?{...selection,airlines:pair}:selection
+  writeFilterUrl(next,endpointFilter,enabled);applySelection(next);setCompare(enabled);setSettings(false);setBoardOpen(false)
+  if(enabled){engine.current.mode='motion';setMode('motion')}
+ }
+ const chartSeek=(time:number)=>{engine.current.playing=false;engine.current.mode='motion';setMode('motion');return seek(time)}
+ const openShare=()=>{
+  engine.current.playing=false;map.current?.followFlight();updateUi();setShareNote('');setSettings(false)
+  const url=new URL(location.href);url.search='';url.hash=sceneHash(selection,endpointFilter,{day:manifest.date,time:engine.current.time,view:map.current?.view,flight:flight||undefined,focus:engine.current.sceneAirport?.icao,mode:mode as 'motion'|'density',daylight,dimOthers,compare:comparing})
+  setShareLink(url.href);setShareOpen(true)
+ }
+ const saveImage=async()=>{
+  const e=engine.current;if(!e.chunk||!map.current)return
+  setExporting(true);setShareNote('');e.playing=false;map.current.followFlight();updateUi()
+  try{
+   const tracks=e.dimOthers?e.chunk.tracks:e.chunk.tracks.filter(track=>!e.selectedIds||e.selectedIds.has(track.id))
+   map.current.draw(tracks,e.time,e.sceneAirport??e.airports,e.mode,e.cells[Math.floor(e.time/3600)],e.accentClock,e.dimOthers?e.selectedIds:undefined)
+   await exportScene(map.current.snapshot(),{date:manifest.date,time:e.time,selection:selectionLabel,flight:index.aircraft.find(track=>track.id===flight)?.callsign,comparison:comparing?comparisonSeries.map(row=>row.label):undefined,mode:e.mode});setShareNote('Image saved')
+  }catch{setShareNote('The image could not be saved. Try again.')}finally{setExporting(false)}
+ }
  const updateUi=()=>{const e=engine.current;setUi(p=>({...p,time:e.time,playing:e.playing,waiting:e.waiting,following:map.current?.followedFlight??''}))}
- const togglePlayback=()=>{const e=engine.current;if(!e.chunk||e.mode!=='motion')return;if(e.scene&&e.time>=e.scene.endTime!){e.playing=true;void seek(e.scene.time,false,true)}else e.playing=!e.playing;updateUi()}
+ const togglePlayback=()=>{setShareOpen(false);const e=engine.current;if(!e.chunk||e.mode!=='motion')return;if(e.scene&&e.time>=e.scene.endTime!){e.playing=true;void seek(e.scene.time,false,true)}else e.playing=!e.playing;updateUi()}
  async function seek(value:number,playback=false,preserveScene=false) {
   if(!playback&&!preserveScene)clearScene()
   if(!playback)map.current?.resetMotionEffects()
@@ -140,12 +191,12 @@ function Study({release}:{release:Release}) {
   updateUi()
  }
  useEffect(()=>{
-  const e=engine.current;map.current=new AirMap(canvas.current!,land,index.airports,{west:manifest.bounds[0],south:manifest.bounds[1],east:manifest.bounds[2],north:manifest.bounds[3]},accentCanvas.current!,manifest.date,{ranks:labelRanks,onChange:setAirportLabels});map.current.setHoldingEvidence(holding.tracks);map.current.setCountries(countries,selection.countries);if(selection.countries.length)map.current.frameCountries(selection.countries);else if(selectedAirports.length)map.current.frameAirports(selectedAirports);let stopped=false,raf=0,last=performance.now(),lastDraw=0,lastUi=0
+  const e=engine.current;map.current=new AirMap(canvas.current!,land,index.airports,{west:manifest.bounds[0],south:manifest.bounds[1],east:manifest.bounds[2],north:manifest.bounds[3]},accentCanvas.current!,manifest.date,{ranks:labelRanks,onChange:setAirportLabels});map.current.setHoldingEvidence(holding.tracks);map.current.setCountries(countries,selection.countries);if(selection.countries.length)map.current.frameCountries(selection.countries);else if(selectedAirports.length)map.current.frameAirports(selectedAirports);map.current.setComparison(comparisonGroups);map.current.setDaylightEnabled(daylight);if(initialScene){map.current.followFlight();if(initialScene.view)map.current.view=initialScene.view;map.current.selectedFlight=initialScene.flight}let stopped=false,raf=0,last=performance.now(),lastDraw=0,lastUi=0
   const motionPreference=matchMedia('(prefers-reduced-motion: reduce)')
   const motionChanged=()=>map.current?.setMotionEffectsEnabled(!motionPreference.matches)
   motionChanged();motionPreference.addEventListener('change',motionChanged)
   let previousChunk:Chunk|undefined,previousIds:Set<string>|undefined,previousDimOthers:boolean|undefined,tracks:Chunk['tracks']=[]
-  void seek(e.time)
+  void seek(e.time,false,true)
   if(new URLSearchParams(location.search).get('renderer')==='three')void chooseRenderer('three')
   const frame=(now:number)=>{
    if(stopped)return
@@ -180,7 +231,7 @@ function Study({release}:{release:Release}) {
   return()=>{stopped=true;rendererGeneration.current++;cancelAnimationFrame(raf);e.generation++;store.dispose();map.current?.dispose();document.removeEventListener('visibilitychange',visibility);document.removeEventListener('keydown',keydown);motionPreference.removeEventListener('change',motionChanged)}
  },[store,land,index,labelRanks,countries])
  useEffect(()=>{
-  const elements=[...document.querySelectorAll('.study>header .identity,.study>header .date,.selection-tools,.context-panels,.map-caption,.view-controls,.study>footer,.airport-panel,.view-settings,.diagnostics,.flight-caption,.scene-caption,.endpoint-panel')]
+  const elements=[...document.querySelectorAll('.study>header .identity,.study>header .date,.selection-tools,.context-panels,.map-caption,.view-controls,.study>footer,.airport-panel,.view-settings,.diagnostics,.flight-caption,.scene-caption,.comparison-panel,.share-panel,.endpoint-panel')]
   const update=()=>{
    const origin=canvas.current?.getBoundingClientRect();if(!origin)return
    map.current?.setLabelObstacles(elements.map(element=>{const r=element.getBoundingClientRect();return {left:r.left-origin.left-6,right:r.right-origin.left+6,top:r.top-origin.top-6,bottom:r.bottom-origin.top+6}}))
@@ -189,7 +240,7 @@ function Study({release}:{release:Release}) {
   }
   const observer=new ResizeObserver(update);elements.forEach(element=>observer.observe(element));update()
   return()=>observer.disconnect()
- },[selection,boardOpen,settings,diagnostics,flight,endpointsOpen,scene])
+ },[selection,boardOpen,settings,diagnostics,flight,endpointsOpen,scene,comparing,shareOpen])
  const selectAirportLabel=(a:Airport)=>{
   clearScene();map.current?.followFlight()
   if(!selection.airports.includes(a.icao))changeSelection({...selection,airports:[...selection.airports,a.icao]})
@@ -233,7 +284,7 @@ function Study({release}:{release:Release}) {
   void loadFlightRoute(flight,controller.signal).then(route=>{if(!controller.signal.aborted){map.current?.setFlightRoute(route);setFlightRoute(route);setRouteState('ready')}}).catch(()=>{if(!controller.signal.aborted)setRouteState('error')})
   return ()=>controller.abort()
  },[flight,routeRetry])
- return <main ref={studySurface} tabIndex={-1} className="study" data-watch={watch.active||undefined} data-watch-awake={watch.awake||undefined} onPointerMove={watch.active?watch.reveal:undefined} onPointerDown={watch.active?watch.reveal:undefined}>
+ return <main ref={studySurface} tabIndex={-1} className="study" data-comparing={comparing||undefined} data-watch={watch.active||undefined} data-watch-awake={watch.awake||undefined} onPointerMove={watch.active?watch.reveal:undefined} onPointerDown={watch.active?watch.reveal:undefined}>
   <header><div className="identity"><a className="eyebrow" href="https://emmettl.github.io/motionstudies/">Motion Studies / research</a><h1>LUFT<span>Flights over Europe</span></h1></div><div className="date">{new Date(`${manifest.date}T12:00:00Z`).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})}<span>Recorded observations · UTC</span></div></header>
   <div className="workspace">
    <section className="stage" aria-label="Map of observed aircraft over Europe">
@@ -259,18 +310,21 @@ function Study({release}:{release:Release}) {
     {selectedAirports.length>0&&<div className="board-launchers">{selectedAirports.map(a=><button key={a.icao} onClick={()=>{if(airport?.icao===a.icao&&boardOpen)setBoardOpen(false);else choose(a)}} aria-expanded={boardOpen&&airport?.icao===a.icao}>{a.iata||a.icao} board <span aria-hidden="true">{boardOpen&&airport?.icao===a.icao?'−':'+'}</span></button>)}</div>}
     </div>
     <div className="context-panels">
+     {comparing?<ComparisonPanel pair={selection.airlines} series={comparisonSeries} time={ui.time} onPair={pair=>changeComparison(true,pair)} onSeek={chartSeek} onClose={()=>changeComparison(false)}/>:<>
      <Moments scenes={scenes} bins={summary.bins} filtered={!!selectionLabel} onJump={exploreMoment}/>
      <Insights index={insightIndex} countries={countries} selection={selection} onChange={changeSelection}/>
+     </>}
     </div>
    </aside>
-   {airport&&boardOpen&&<section className="airport-panel" aria-label={`${airport.iata||airport.icao} airport board`}><div className="panel-heading"><span>Observed movements</span><button aria-label="Close airport board" onClick={()=>setBoardOpen(false)}>×</button></div><AirportHeroCard key={airport.id} airport={{...airport,city:cityLabel(airport),iata:airport.iata||airport.icao}} departures={board.departures} arrivals={board.arrivals} study={{time:ui.time,windowStart:0,windowEnd:86400}} dateLabel={`${manifest.date} · UTC`} density="compact" maxRows={6} labels={{time:'Seen',emptyDepartures:'No observed departures in this selection.',emptyArrivals:'No observed arrivals in this selection.'}} note="Airport associations inferred from observed trace endpoints. Times are observations, not schedules; blank routes remain unknown." selectedFlightId={flight} onSelectFlight={selectFlight}/><p className="association-note">{board.departures.length} outbound / {board.arrivals.length} inbound associations in this selection.{!airport.hasObservedMovements?' No endpoint evidence for this airport; this does not mean no flights.':''}</p></section>}
+   {airport&&boardOpen&&<section className="airport-panel" aria-label={`${airport.iata||airport.icao} airport board`}><div className="panel-heading"><span>Observed movements</span><button aria-label="Close airport board" onClick={()=>setBoardOpen(false)}>×</button></div><ActivityChart series={airportSeries} time={ui.time} onSeek={chartSeek} label="Airport activity time UTC"/><p className="chart-note">Distinct aircraft per half-hour · observed arrivals and departures. Drag to explore.</p><AirportHeroCard key={airport.id} airport={{...airport,city:cityLabel(airport),iata:airport.iata||airport.icao}} departures={board.departures} arrivals={board.arrivals} study={{time:ui.time,windowStart:0,windowEnd:86400}} dateLabel={`${manifest.date} · UTC`} density="compact" maxRows={6} labels={{time:'Seen',emptyDepartures:'No observed departures in this selection.',emptyArrivals:'No observed arrivals in this selection.'}} note="Airport associations inferred from observed trace endpoints. Times are observations, not schedules; blank routes remain unknown." selectedFlightId={flight} onSelectFlight={selectFlight}/><p className="association-note">{board.departures.length} outbound / {board.arrivals.length} inbound associations in this selection.{!airport.hasObservedMovements?' No endpoint evidence for this airport; this does not mean no flights.':''}</p></section>}
 
   </div>
   <footer>
-   <div className="transport"><div className="playback-controls"><button className="play" aria-keyshortcuts="Space" title="Play / pause (Space)" disabled={mode==='density'||!engine.current.chunk} onClick={togglePlayback}><svg aria-hidden="true" width="12" height="14" viewBox="0 0 12 14" fill="currentColor">{ui.playing?<path d="M1 1h3v12H1zm7 0h3v12H8z"/>:<path d="M2 1l9 6-9 6z"/>}</svg>{ui.playing?'Pause':'Play'}</button><label className="speed-label">Pace <select aria-label="Playback speed" value={speed} onChange={e=>{const s=+e.target.value;setSpeed(s);engine.current.speed=s}}><option value="60">1 min / s</option><option value="300">5 min / s</option><option value="900">15 min / s</option></select></label></div><div className="view-actions"><SoundControl {...sound}/><button className="watch-toggle" aria-label="Enter watch mode" title="Watch fullscreen" disabled={!engine.current.chunk} onClick={event=>watch.enter(event.currentTarget)}><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M6 2H2v4m8-4h4v4M2 10v4h4m8-4v4h-4"/></svg><span>Watch</span></button><button className="settings-toggle" aria-label="View settings" aria-expanded={settings} onClick={()=>setSettings(!settings)}><span className="view-label">View</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M2 4h12M2 12h12"/><circle cx="6" cy="4" r="2" fill="#101f2b"/><circle cx="10" cy="12" r="2" fill="#101f2b"/></svg></button></div><span className={`stream-status ${status==='Ready'?'is-ready':''}`} role="status">{status==='Ready'?(ui.playing?'Playing': 'Paused'):status}</span>{status.includes('Retry')&&<button onClick={()=>void seek(engine.current.targetTime)}>Retry</button>}</div>
+   <div className="transport"><div className="playback-controls"><button className="play" aria-keyshortcuts="Space" title="Play / pause (Space)" disabled={mode==='density'||!engine.current.chunk} onClick={togglePlayback}><svg aria-hidden="true" width="12" height="14" viewBox="0 0 12 14" fill="currentColor">{ui.playing?<path d="M1 1h3v12H1zm7 0h3v12H8z"/>:<path d="M2 1l9 6-9 6z"/>}</svg>{ui.playing?'Pause':'Play'}</button><label className="speed-label">Pace <select aria-label="Playback speed" value={speed} onChange={e=>{const s=+e.target.value;setSpeed(s);engine.current.speed=s}}><option value="60">1 min / s</option><option value="300">5 min / s</option><option value="900">15 min / s</option></select></label></div><div className="view-actions"><SoundControl {...sound}/><button className="watch-toggle" aria-label="Enter watch mode" title="Watch fullscreen" disabled={!engine.current.chunk} onClick={event=>watch.enter(event.currentTarget)}><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M6 2H2v4m8-4h4v4M2 10v4h4m8-4v4h-4"/></svg><span>Watch</span></button><button className="settings-toggle" aria-label="View settings" aria-expanded={settings} onClick={()=>{setShareOpen(false);setSettings(!settings)}}><span className="view-label">View</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M2 4h12M2 12h12"/><circle cx="6" cy="4" r="2" fill="#101f2b"/><circle cx="10" cy="12" r="2" fill="#101f2b"/></svg></button></div><span className={`stream-status ${status==='Ready'?'is-ready':''}`} role="status">{status==='Ready'?(ui.playing?'Playing': 'Paused'):status}</span>{status.includes('Retry')&&<button onClick={()=>void seek(engine.current.targetTime)}>Retry</button>}</div>
    <FlightTimeline bins={timelineBins} windowStart={0} windowEnd={86400} time={ui.time} onSeek={time=>seek(time)} onScrubStart={()=>{engine.current.scrubbing=true;updateUi()}} onScrubEnd={()=>{engine.current.scrubbing=false}} label={selectionLabel||'Aircraft over Europe'} ariaLabel="Time of day UTC" variant={chartStyle} formatValue={formatActivity} description="5-minute snapshots · UTC"/>
    <div className="colophon"><p><a href="https://www.adsb.lol/">ADSB.lol</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL</a></p><button className="text-button" aria-expanded={diagnostics} onClick={()=>setDiagnostics(!diagnostics)}>Device details</button><details className="method"><summary>About LUFT</summary><div className="method-content"><p>Aircraft data: ADSB.lol &amp; contributors, ODbL 1.0. Airport reference: OurAirports. Land and country boundaries: Natural Earth. Airline marks identify the observed operator. <a href="https://ourairports.com/">OurAirports</a> and <a href="https://www.naturalearthdata.com/">Natural Earth</a>: public domain.</p><p>{manifest.method} Brief gold departure and cyan arrival rings mark airport-linked observations, not confirmed wheels-up or touchdown times. In Watch mode, softly brighter trails suggest possible holding: little progress towards an observed destination, sustained turning and loop closure at a suitable altitude and distance. Training circuits and other loitering can also qualify; this is an experimental visual cue, not a confirmed holding classification. Airline filters use observed operating callsigns, not ownership or ticket codes. Flights using partner operators or unidentified callsigns may be missing. Countries match flights with an observed endpoint at an airport in that country, using OurAirports country codes. Overflights without such an endpoint do not match. All study airports in selected countries receive markers; text labels remain spaced for readability. Airlines, airports, countries, continents and routes combine across groups; multiple choices within a group are alternatives. Insights rank unique aircraft over the recorded day using observed endpoints and the other active filter groups. Rows can overlap, and missing associations are excluded. The activity strip, density and airport boards follow the selection. In Motion view, other flights can be hidden or dimmed in View settings. Hour density counts five-minute observations in 0.5° cells, normalized within each selection/hour; brightness cannot compare volumes across hours or airlines. The destination panel also supports arrival/departure airport and continent filters. Corroborated endpoint metadata is supported by separated observations; candidate-only routes are opt-in and conflicts stay unresolved. These labels never add trajectory points or airport event times. Receiver coverage is incomplete. This is a recorded day, not live air traffic. Day / night shading approximates the geometric sun position using <a href="https://gml.noaa.gov/grad/solcalc/solareqns.PDF">NOAA solar equations</a>; it is ambient context, not weather or observed illumination.</p><a href={`${import.meta.env.BASE_URL}data/manifest.json`}>Recorder release and source hashes ↗</a></div></details></div>
-   {settings&&<section className="view-settings" aria-label="View settings"><div className="panel-heading"><span>View settings</span><button aria-label="Close view settings" onClick={()=>setSettings(false)}>×</button></div><div className="mode-controls">{['motion','density'].map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{clearScene();map.current?.followFlight();setMode(m);engine.current.mode=m;engine.current.playing=false;updateUi()}}>{m==='motion'?'Motion':'Hour density'}</button>)}</div><button className="chart-style" aria-label={chartStyle==='bars'?'Show activity as a line':'Show activity as bars'} onClick={()=>setChartStyle(chartStyle==='bars'?'line':'bars')}>{chartStyle==='bars'?'▥ Bars':'⌁ Line'}</button><label className="filter-display"><input type="checkbox" checked={dimOthers} onChange={e=>{setDimOthers(e.target.checked);engine.current.dimOthers=e.target.checked}} aria-describedby="filter-display-note"/>Dim other flights</label><p id="filter-display-note">Keep non-matching flights faintly visible in Motion view. Turn off to hide them.</p><label className="filter-display"><input type="checkbox" checked={daylight} onChange={e=>{setDaylight(e.target.checked);map.current?.setDaylightEnabled(e.target.checked)}} aria-describedby="daylight-note"/>Day / night shading</label><p id="daylight-note">Sunlight follows the recorded date and UTC clock. Density uses the middle of each hour.</p><div className="renderer-picker"><label htmlFor="renderer">Aircraft renderer</label><select id="renderer" value={renderer} disabled={rendererLoading} onChange={e=>void chooseRenderer(e.target.value as 'canvas'|'three')}><option value="canvas">Canvas 2D</option><option value="three">Three.js · GPU</option></select>{rendererLoading&&<span role="status">Opening Three.js…</span>}{rendererNote&&<span role="status">{rendererNote}</span>}</div><p>Density counts observed five-minute snapshots. Route filters use inferred endpoints in either direction; unknown routes are excluded.</p></section>}
+   {shareOpen&&<section className="share-panel" aria-label="Share scene"><div className="panel-heading"><span>Keep this moment</span><button aria-label="Close share scene" onClick={()=>setShareOpen(false)}>×</button></div><p>{manifest.date} · {stamp(ui.time)} UTC</p><label className="share-link">Scene link<input aria-label="Scene link" readOnly value={shareLink} onFocus={event=>event.target.select()}/></label><div className="share-actions"><button onClick={async()=>{try{await navigator.clipboard.writeText(shareLink);setShareNote('Link copied')}catch{setShareNote('Select the link above to copy it.')}}}>Copy link</button><button disabled={exporting||ui.waiting||!engine.current.chunk||!!flight&&routeState==='loading'} onClick={()=>void saveImage()}>{exporting?'Saving…':'Save image'}</button></div><p className="chart-note">The link restores this recorded day, time and view while that day is available. Save an image to keep it permanently.</p><p role="status">{shareNote}</p></section>}
+   {settings&&<section className="view-settings" aria-label="View settings"><div className="panel-heading"><span>View settings</span><button aria-label="Close view settings" onClick={()=>setSettings(false)}>×</button></div><div className="view-extras"><button aria-pressed={comparing} onClick={()=>changeComparison(!comparing)}>Compare two airlines</button><button disabled={ui.waiting||!engine.current.chunk} onClick={openShare}>Share scene</button></div><div className="mode-controls">{(['motion','density'] as const).map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{clearScene();map.current?.followFlight();setMode(m as 'motion'|'density');engine.current.mode=m;engine.current.playing=false;updateUi()}}>{m==='motion'?'Motion':'Hour density'}</button>)}</div><button className="chart-style" aria-label={chartStyle==='bars'?'Show activity as a line':'Show activity as bars'} onClick={()=>setChartStyle(chartStyle==='bars'?'line':'bars')}>{chartStyle==='bars'?'▥ Bars':'⌁ Line'}</button><label className="filter-display"><input type="checkbox" checked={dimOthers} onChange={e=>{setDimOthers(e.target.checked);engine.current.dimOthers=e.target.checked}} aria-describedby="filter-display-note"/>Dim other flights</label><p id="filter-display-note">Keep non-matching flights faintly visible in Motion view. Turn off to hide them.</p><label className="filter-display"><input type="checkbox" checked={daylight} onChange={e=>{setDaylight(e.target.checked);map.current?.setDaylightEnabled(e.target.checked)}} aria-describedby="daylight-note"/>Day / night shading</label><p id="daylight-note">Sunlight follows the recorded date and UTC clock. Density uses the middle of each hour.</p><div className="renderer-picker"><label htmlFor="renderer">Aircraft renderer</label><select id="renderer" value={renderer} disabled={rendererLoading} onChange={e=>void chooseRenderer(e.target.value as 'canvas'|'three')}><option value="canvas">Canvas 2D</option><option value="three">Three.js · GPU</option></select>{rendererLoading&&<span role="status">Opening Three.js…</span>}{rendererNote&&<span role="status">{rendererNote}</span>}</div><p>Density counts observed five-minute snapshots. Route filters use inferred endpoints in either direction; unknown routes are excluded.</p></section>}
    {diagnostics&&<div className="diagnostics"><strong>On this device · {renderer==='three'?'Three.js':'Canvas'} · {version}</strong><span>Map draw p95: {ui.ms.toFixed(1)} ms · max {Math.max(0,...(map.current?.durations??[])).toFixed(1)} ms</span><span>CPU stages p95 · setup {percentile(map.current?.stages.map(s=>s.setup)??[]).toFixed(1)} · sampling {percentile(map.current?.stages.map(s=>s.sampling)??[]).toFixed(1)} · {renderer==='three'?'geometry':'Canvas drawing'} {percentile(map.current?.stages.map(s=>s.geometry)??[]).toFixed(1)} · submission {percentile(map.current?.stages.map(s=>s.submission)??[]).toFixed(1)} ms</span><span>Paint interval p95: {percentile(metrics.current.intervals).toFixed(1)} ms · cap 30 Hz</span><span>{metrics.current.bufferSeconds.toFixed(1)} s buffering since reset</span>{renderer==='three'&&<span>{map.current?.gpuStats()?.calls??0} GPU draw calls · aircraft layer</span>}{renderer==='three'&&<span>{((map.current?.gpuStats()?.geometryPreparedBytes??0)/1024).toFixed(0)} KiB geometry rebuilt · {((map.current?.gpuStats()?.stateUploadBytes??0)/1024).toFixed(0)} KiB aircraft state per frame · {map.current?.gpuStats()?.geometryBuilds??0} geometry builds</span>}<span>{ui.cache} / 4 chunks in memory</span><span>{(ui.responseBytes/1024/1024).toFixed(1)} MiB track response data · HTTP cache may contribute</span><span>{((store.disk?.stats.localBytes??0)/1024/1024).toFixed(1)} MiB reused from local storage · {store.disk?.stats.localHits??0} cache hits</span><span>{store.disk?.stats.savedChunks??0} chunks saved on device · {((store.disk?.stats.savedBytes??0)/1024/1024).toFixed(1)} MiB</span>{store.disk?.stats.storage!=='available'&&<span>{store.disk?.stats.storage==='opening'?'Opening local cache…':store.disk?.stats.storage==='full'?'Local storage full; playback continues using fetch.':'Local storage unavailable; playback continues using fetch.'}</span>}<span>{ui.waiting?'Clock held while buffering':'Buffer ready'}</span><p>Stage percentiles are independent and do not add up. CPU submission time excludes asynchronous GPU completion, decoding, layout and network work. Compare the same view, carrier, clock and pace after warming the data. Ten-minute chunks are verified before display; gaps over 45 seconds remain gaps.</p><div className="comparison-actions"><button onClick={resetMeasurements}>Reset measurements</button><button onClick={()=>void copyMeasurements()}>Copy results</button></div>{copyNote&&<span role="status">{copyNote}</span>}</div>}
 
   </footer>

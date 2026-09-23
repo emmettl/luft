@@ -7,6 +7,7 @@ uniform vec2 viewport;
 uniform vec4 projection;
 uniform sampler2D aircraftState;
 uniform sampler2D holdingState;
+uniform sampler2D comparisonState;
 float hold=0.;
 uniform vec2 stateSize;
 uniform float studyTime;
@@ -23,6 +24,8 @@ void style(vec4 head,float direction,float index){
  ink=emphasis>1.5?vec3(1.):direction>.5&&direction<1.5?vec3(129.,217.,241.)/255.:direction>1.5?vec3(239.,189.,114.)/255.:head.w<10000.?vec3(207.,172.,118.)/255.:vec3(134.,186.,199.)/255.;
  alpha=emphasis<-.5||(airportSelected>.5&&emphasis<.5)?.14:1.;
  ink=mix(ink,vec3(1.),hold*.45);
+ float group=texture2D(comparisonState,(vec2(mod(index,stateSize.x),floor(index/stateSize.x))+.5)/stateSize).r;
+ if(group>.5&&emphasis<1.5)ink=group<1.5?vec3(129.,217.,241.)/255.:vec3(239.,189.,114.)/255.;
  alpha*=head.z;
 }
 `
@@ -63,7 +66,10 @@ export class GpuAircraftPainter implements AircraftPainter {
  private texture=new THREE.DataTexture(this.state,1,1,THREE.RGBAFormat,THREE.FloatType)
  private holding=new Float32Array(1)
  private holdingTexture=new THREE.DataTexture(this.holding,1,1,THREE.RedFormat,THREE.FloatType)
- private readonly uniforms={holdingState:{value:this.holdingTexture},watching:{value:0},viewport:{value:new THREE.Vector2(1,1)},projection:{value:new THREE.Vector4()},pixelRatio:{value:1},aircraftState:{value:this.texture},stateSize:{value:new THREE.Vector2(1,1)},studyTime:{value:0},airportSelected:{value:0}}
+ private comparison=new Float32Array(1)
+ private comparisonTexture=new THREE.DataTexture(this.comparison,1,1,THREE.RedFormat,THREE.FloatType)
+ private comparisonGroups?:ReadonlyMap<string,number>
+ private readonly uniforms={comparisonState:{value:this.comparisonTexture},holdingState:{value:this.holdingTexture},watching:{value:0},viewport:{value:new THREE.Vector2(1,1)},projection:{value:new THREE.Vector4()},pixelRatio:{value:1},aircraftState:{value:this.texture},stateSize:{value:new THREE.Vector2(1,1)},studyTime:{value:0},airportSelected:{value:0}}
  private readonly objects:(THREE.Mesh|THREE.Points)[]=[]
  private readonly materials:THREE.ShaderMaterial[]=[]
  private readonly trailBuckets:{object:THREE.Mesh;start:number;end:number}[]=[]
@@ -89,13 +95,16 @@ export class GpuAircraftPainter implements AircraftPainter {
   this.uniforms.projection.value.set(projection.xScale,projection.yScale,projection.xOffset,projection.yOffset)
   this.uniforms.studyTime.value=time;this.geometryPreparedBytes=0;this.updateBucketVisibility()
  }
- prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string,matchingIds?:ReadonlySet<string>){
+ prepare(tracks:AirTrack[],airport?:string|readonly string[],selected?:string,matchingIds?:ReadonlySet<string>,comparison?:ReadonlyMap<string,number>){
   const airportKey=typeof airport==='string'?airport:airport?.join('|')
-  if(tracks===this.tracks&&airportKey===this.airport&&selected===this.selected&&matchingIds===this.matchingIds)return
-  this.tracks=tracks;this.airport=airportKey;this.selected=selected;this.matchingIds=matchingIds;this.builds++
-  this.uniforms.airportSelected.value=airportKey?1:0
+  if(tracks===this.tracks&&airportKey===this.airport&&selected===this.selected&&matchingIds===this.matchingIds&&comparison===this.comparisonGroups)return
+  this.tracks=tracks;this.airport=airportKey;this.selected=selected;this.matchingIds=matchingIds;this.comparisonGroups=comparison;this.builds++
+  this.uniforms.airportSelected.value=airportKey&&!comparison?1:0
   const width=Math.min(1024,this.renderer.capabilities.maxTextureSize,Math.max(1,tracks.length)),height=Math.max(1,Math.ceil(tracks.length/width))
   if(height>this.renderer.capabilities.maxTextureSize)throw Error('Aircraft texture exceeds device capacity')
+  this.comparisonTexture.dispose();this.comparison=new Float32Array(width*height)
+  tracks.forEach((track,i)=>{this.comparison[i]=comparison?.get(track.id)??0})
+  this.comparisonTexture=new THREE.DataTexture(this.comparison,width,height,THREE.RedFormat,THREE.FloatType);this.comparisonTexture.needsUpdate=true;this.uniforms.comparisonState.value=this.comparisonTexture
   this.holdingTexture.dispose();this.holding=new Float32Array(width*height)
   this.holdingTexture=new THREE.DataTexture(this.holding,width,height,THREE.RedFormat,THREE.FloatType);this.uniforms.holdingState.value=this.holdingTexture
   this.texture.dispose();this.state=new Float32Array(width*height*4)
@@ -134,8 +143,9 @@ export class GpuAircraftPainter implements AircraftPainter {
   const i=index*4;this.state[i+2]=position&&visible?opacity:0
   if(position&&visible){this.state[i]=position.longitude;this.state[i+1]=position.latitude;this.state[i+3]=position.altitudeFeet}
  }
+ snapshot(){this.renderer.render(this.scene,this.camera);return this.canvas}
  end(){this.stateUploadBytes=this.state.byteLength;if(this.uniforms.watching.value){this.holdingTexture.needsUpdate=true;this.stateUploadBytes+=this.holding.byteLength}this.texture.needsUpdate=true;this.renderer.render(this.scene,this.camera)}
  clear(){this.renderer.clear();this.renderer.info.reset();this.geometryPreparedBytes=0;this.stateUploadBytes=0}
  stats(){const r=this.renderer.info.render;return {calls:r.calls,triangles:r.triangles,points:r.points,geometryBuilds:this.builds,geometryBytes:this.geometryBytes,geometryPreparedBytes:this.geometryPreparedBytes,stateUploadBytes:this.stateUploadBytes}}
- dispose(){if(this.disposed)return;this.disposed=true;this.canvas.removeEventListener('webglcontextlost',this.lost);for(const object of this.objects)object.geometry.dispose();for(const material of this.materials)material.dispose();this.texture.dispose();this.holdingTexture.dispose();this.tracks=undefined;this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.remove()}
+ dispose(){if(this.disposed)return;this.disposed=true;this.canvas.removeEventListener('webglcontextlost',this.lost);for(const object of this.objects)object.geometry.dispose();for(const material of this.materials)material.dispose();this.texture.dispose();this.holdingTexture.dispose();this.comparisonTexture.dispose();this.tracks=undefined;this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.remove()}
 }

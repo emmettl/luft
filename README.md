@@ -48,6 +48,20 @@ Select an aircraft and choose **Follow aircraft** to play its observed journey w
 
 The selected-flight card includes an altitude profile and time marker. It loads with the existing on-demand route file, preserving observation gaps. Route simplification now also retains altitude changes to approximately 250 feet; the profile is a compact view of recorded altitude, not terrain clearance or an extrapolated flight path.
 
+## Airport rhythms
+
+Each airport board includes arrivals and departures on a shared scale, grouped into half-hour windows. Counts deduplicate aircraft identities within each window and use known observed endpoint times from the current selection. They are not scheduled movements. Drag the paired chart, or use its keyboard-accessible time control, to pause and seek the main map; the board updates to the same clock.
+
+## Compare airlines
+
+**View → Compare two airlines** selects a pair of carriers and uses consistent cyan and gold colours on the map and in two aligned activity curves. Both curves count distinct aircraft in five-minute snapshots on one shared scale, respecting the remaining airport, route, geography and endpoint filters. The second line is dashed as well as coloured. Choose either airline, scrub the chart, or minimise the panel to leave more space for the map. Closing comparison keeps the airline filters and restores normal map colours. Comparison applies in Motion view and works with both renderers.
+
+## Share a scene
+
+**View → Share scene** pauses playback and captures the recorded date, time, camera, filters, selected aircraft, comparison and display settings. **Copy link** restores that scene paused. **Save image** exports a PNG of the map with LUFT typography, the recorded timestamp and source attribution; both Canvas and Three.js aircraft are included, with no interface panels in the image.
+
+This edition serves one recorded day at a time. A scene link from a day that is no longer available shows its original date and offers the current edition, rather than replaying a different day silently. Save an image for a permanent keepsake. Ordinary filter-only URLs remain compatible; changing filters removes the fixed scene coordinates from the address.
+
 ## Compare renderers
 
 Open **View → Aircraft renderer** to switch between Canvas and the optional Three.js aircraft layer. The clock, view and selections stay in place. [Open Three.js](https://emmettl.github.io/luft/?renderer=three) or [Canvas](https://emmettl.github.io/luft/?renderer=canvas). **Device details** provides resettable timings and **Copy results** for real-device comparisons. See [the comparison guide](docs/COMPARISON.md).

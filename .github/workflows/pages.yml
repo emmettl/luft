@@ -20,7 +20,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm install --global npm@11.19.0
+      - run: npm install --global npm@11.21.0
       - run: npm ci
       - run: npm run data:fetch
       - run: npm run build && npm test

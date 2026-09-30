@@ -3,11 +3,11 @@
   "version": "0.11.0",
   "private": true,
   "type": "module",
-  "description": "LUFT — observed flights over Europe, a Motion Studies research edition",
+  "description": "LUFT \u2014 observed flights over Europe, a Motion Studies research edition",
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "npm@11.19.0",
+  "packageManager": "npm@11.21.0",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
@@ -23,22 +23,22 @@
     "data:enrichment": "node scripts/verify-enrichment.mjs"
   },
   "dependencies": {
-    "@motionstudies/core": "0.1.0-alpha.30",
-    "@motionstudies/data": "0.1.0-alpha.30",
-    "@motionstudies/three": "0.1.0-alpha.30",
-    "@motionstudies/web": "0.1.0-alpha.30",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "three": "0.185.1"
+    "@motionstudies/core": "0.1.0-alpha.31",
+    "@motionstudies/data": "0.1.0-alpha.31",
+    "@motionstudies/three": "0.1.0-alpha.31",
+    "@motionstudies/web": "0.1.0-alpha.31",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.7",
-    "@types/three": "0.185.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.1.1",
     "typescript": "7.0.2",
-    "vite": "8.3.0",
-    "vitest": "5.0.0"
+    "vite": "8.3.1",
+    "vitest": "5.0.3"
   }
 }

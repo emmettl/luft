@@ -1,24 +1,24 @@
 {
   "origin": {
-    "segments": 38915,
-    "observed": 20419,
+    "segments": 37987,
+    "observed": 19534,
     "corroborated": 0,
-    "candidate": 6709,
+    "candidate": 6521,
     "conflicting": 0,
-    "unknown": 11787,
-    "usable": 20419,
-    "unresolved": 18496,
-    "continentKnown": 20419
+    "unknown": 11932,
+    "usable": 19534,
+    "unresolved": 18453,
+    "continentKnown": 19534
   },
   "destination": {
-    "segments": 38915,
-    "observed": 19725,
+    "segments": 37987,
+    "observed": 19778,
     "corroborated": 0,
-    "candidate": 7446,
+    "candidate": 6340,
     "conflicting": 0,
-    "unknown": 11744,
-    "usable": 19725,
-    "unresolved": 19190,
-    "continentKnown": 19725
+    "unknown": 11869,
+    "usable": 19778,
+    "unresolved": 18209,
+    "continentKnown": 19778
   }
 }

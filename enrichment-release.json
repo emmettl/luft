@@ -1,8 +1,8 @@
 {
   "path": "enrichment/endpoints.json.gz.bin",
-  "bytes": 232551,
-  "decodedBytes": 2461426,
-  "sha256": "757d6f50a4b79d58e3cd48cef41f55922c7fc6cb0aaf0107e1fc036d2f63f3fb",
-  "date": "2026-10-06",
-  "sourceManifestSha256": "eba6c5cb34b9107b6dbc71074396fb43e2d0e2c69baf65260729228ab34f9de9"
+  "bytes": 243663,
+  "decodedBytes": 2595103,
+  "sha256": "1c302ca414316d1bd22fdbd99c1fd248ea4f14e60a4793f2bd18cb3385614909",
+  "date": "2026-10-08",
+  "sourceManifestSha256": "4b1d5b7a19139ddf7b675c11d384b960068578335905997f2f6fac8a6568c318"
 }

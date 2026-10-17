@@ -1,8 +1,8 @@
 {
-  "date": "2026-10-14",
-  "url": "https://github.com/emmettl/luft/releases/download/air-2026-10-14-v1/luft-air-2026-10-14-v1.tar.gz",
-  "bytes": 241326204,
-  "sha256": "17ef96f203ddf5acd856816285bb10188429f5965066db112c03393b8eef86de",
-  "manifestSha256": "d44fcde12f06797eb481902581df1a0e115af5e353b8974ec67025beafadc6ca",
+  "date": "2026-10-16",
+  "url": "https://github.com/emmettl/luft/releases/download/air-2026-10-16-v1/luft-air-2026-10-16-v1.tar.gz",
+  "bytes": 246262592,
+  "sha256": "8f0ca9a19c3ce79d379e94724bdebde31459424a00d62b17c51a1fa463359532",
+  "manifestSha256": "01379ec0cef85c6e4a4b74ecb39700887140ff095943798386fa3090aa20e46b",
   "recorderCommit": "71df8088faaebe685559f9a3aaae46c61da15528"
 }

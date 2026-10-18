@@ -78,6 +78,8 @@ Routes come from distinct pairs of known observed endpoints. They cover both dir
 
 ## Run
 
+The public study is served at [motionstudies.app/luft](https://motionstudies.app/luft/), with [GitHub Pages](https://emmettl.github.io/luft/) retained as a mirror. A separate Cloudflare workflow publishes the exact artifact from a successful main Pages workflow; failed checks do not publish. See [series hosting](https://github.com/emmettl/motionstudies/blob/main/docs/HOSTING.md) for the shared publication and rollback contract. LUFT’s validated daily refresh workflow can also supply that artifact.
+
 Node 24+, npm 11.21.1:
 
 ```sh

@@ -78,7 +78,7 @@ Routes come from distinct pairs of known observed endpoints. They cover both dir
 
 ## Run
 
-Node 24+, npm 11.19.0:
+Node 24+, npm 11.21.1:
 
 ```sh
 npm ci

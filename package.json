@@ -3,11 +3,11 @@
   "version": "0.11.0",
   "private": true,
   "type": "module",
-  "description": "LUFT \u2014 observed flights over Europe, a Motion Studies research edition",
+  "description": "LUFT — observed flights over Europe, a Motion Studies research edition",
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "npm@11.21.0",
+  "packageManager": "npm@11.21.1",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
@@ -27,18 +27,18 @@
     "@motionstudies/data": "0.1.0-alpha.31",
     "@motionstudies/three": "0.1.0-alpha.31",
     "@motionstudies/web": "0.1.0-alpha.31",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "three": "0.186.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.64.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/three": "0.186.0",
-    "@vitejs/plugin-react": "6.1.1",
+    "@vitejs/plugin-react": "6.1.2",
     "typescript": "7.0.2",
-    "vite": "8.3.1",
-    "vitest": "5.0.3"
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
   }
 }

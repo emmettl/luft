@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test'
 import {pauseAtStart} from './playback-helpers'
+import {frameText} from './release-expectations'
 
 test('shared hashes restore every filter group after loading and reloading',async({page,context})=>{
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message))
@@ -10,7 +11,10 @@ test('shared hashes restore every filter group after loading and reloading',asyn
  for(const label of ['SWISS','easyJet','ZRH','LHR','LHR ↔ ZRH','Switzerland','United Kingdom','Europe']){
   await expect(pills.getByRole('button',{name:`Remove ${label}`,exact:true})).toHaveCount(1)
  }
- const count=await page.locator('.count').innerText(),summary=await page.locator('.selection-summary').innerText()
+ // Wait for the filtered 07:00 frame; the clock can settle before chunk loading.
+ const count=`${frameText(25200,{airlines:['swiss','easyjet'],airports:['LSZH','EGLL'],routes:['EGLL|LSZH'],countries:['CH','GB'],continents:['EU']})} · SWISS + easyJet · ZRH + LHR · LHR ↔ ZRH · Switzerland + United Kingdom · Europe`
+ await expect(page.locator('.count')).toHaveText(count)
+ const summary=await page.locator('.selection-summary').innerText()
  await page.reload();await pauseAtStart(page)
  await expect(pills.locator('.filter-pill')).toHaveCount(8)
  await expect(page.locator('.count')).toHaveText(count)

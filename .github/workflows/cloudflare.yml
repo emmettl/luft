@@ -34,14 +34,14 @@ jobs:
     # Keep deployment credentials restricted to main.
     environment:
       name: cloudflare
-      url: https://motionstudies.app/luft/
+      url: https://luft.motionstudies.app/
     steps:
       # Use trusted publishing code, not code from the downloaded Pages artifact.
       - name: Check out pinned hosting tools
         uses: actions/checkout@v7
         with:
           repository: emmettl/motionstudies
-          ref: a4e61c93a5276aa9a761356b5025412d868aa4c7
+          ref: d535d5311f49663c04e2935653fa5909bfd4c902
           path: hosting-tools
           persist-credentials: false
       - name: Set up Node
@@ -65,6 +65,6 @@ jobs:
       - name: Link edition and release provenance
         run: |
           printf '%s\n' \
-            '[Open edition](https://motionstudies.app/luft/)' \
-            '[Inspect live release metadata](https://motionstudies.app/luft/_release.json)' \
+            '[Open edition](https://luft.motionstudies.app/)' \
+            '[Inspect live release metadata](https://luft.motionstudies.app/_release.json)' \
             >> "$GITHUB_STEP_SUMMARY"

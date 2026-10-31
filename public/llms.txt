@@ -1,0 +1,12 @@
+# LUFT
+
+> A Motion Studies research study of a recorded day of aircraft movement over Europe, revealing routes, airport rhythms, and accumulating traces.
+
+## Study
+
+- [LUFT](https://luft.motionstudies.app/): Interactive playback of observed aircraft movement over Europe.
+- [Motion Studies](https://motionstudies.app/): The catalogue and approach to scheduled, observed, and reconstructed movement.
+
+## Optional
+
+- [Source repository](https://github.com/emmettl/luft): Study source code and documentation.

@@ -1,0 +1,52 @@
+import { expect, test } from '@playwright/test'
+import { pauseAtStart } from './playback-helpers'
+import release from '../data-release.json' with { type: 'json' }
+
+const panel = (page: import('@playwright/test').Page) => page.getByRole('complementary', { name: 'Edition GPU debugging' })
+test('normal GPU mode loads no capture or profiler tools', async ({ page }) => {
+  const requests: string[] = []
+  page.on('request', request => requests.push(request.url()))
+  await page.goto('./?renderer=three')
+  await pauseAtStart(page)
+  await expect(page.locator('.gpu-layer')).toBeAttached()
+  await expect(panel(page)).toHaveCount(0)
+  expect(requests.some(url => /debug-runtime|spector|r3f-perf/.test(url))).toBe(false)
+})
+test('capture exports instanced aircraft draws and current release state', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('./?renderer=three&debug=capture')
+  await panel(page).locator('summary').first().click()
+  await pauseAtStart(page)
+  const debug = panel(page)
+  await debug.locator('summary').first().click()
+  await expect(debug.getByRole('button', { name: 'Capture WebGL frame', exact: true })).toBeEnabled()
+  await debug.getByRole('button', { name: 'Capture WebGL frame', exact: true }).click()
+  await expect(debug.getByRole('status')).toHaveText(/Captured [1-9]\d* WebGL commands\./, { timeout: 20_000 })
+  const result = await debug.getByRole('link', { name: 'Download capture JSON' }).evaluate(async link => (await fetch((link as HTMLAnchorElement).href)).json())
+  expect(result.motionstudies.edition).toBe('luft')
+  expect(result.motionstudies.dataRelease.manifestSha256).toBe(release.manifestSha256)
+  expect(result.motionstudies.playbackTime).toBe(25200)
+  expect(result.motionstudies.projection).toHaveLength(4)
+  expect(result.commands.some((command: { name: string }) => command.name === 'drawArraysInstanced')).toBe(true)
+  expect(errors).toEqual([])
+})
+test('switching to Canvas retires the GPU registration; remount registers once', async ({ page }) => {
+  await page.goto('./?renderer=three&debug=capture')
+  await panel(page).locator('summary').first().click()
+  await pauseAtStart(page)
+  const options = panel(page).getByLabel('Debug renderer').locator('option')
+  await expect(options).toHaveCount(1)
+  await page.getByRole('button', { name: 'View settings', exact: true }).click()
+  await page.getByLabel('Aircraft renderer').selectOption('canvas')
+  await expect(options).toHaveCount(0)
+  await expect(panel(page).locator('button').filter({ hasText: 'Capture WebGL frame' })).toBeDisabled()
+  await page.getByLabel('Aircraft renderer').selectOption('three')
+  await expect(options).toHaveCount(1)
+  await page.locator('.gpu-layer').evaluate(canvas => (canvas as HTMLCanvasElement).getContext('webgl2')!.getExtension('WEBGL_lose_context')!.loseContext())
+  await expect(options).toHaveCount(0)
+  await expect(page.getByLabel('Aircraft renderer')).toHaveValue('canvas')
+  await panel(page).locator('summary').first().click()
+  await panel(page).getByRole('link', { name: 'Exit debugging (reload)' }).click()
+  await expect(panel(page)).toHaveCount(0)
+})

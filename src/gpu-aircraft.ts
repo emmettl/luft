@@ -1,3 +1,4 @@
+import { registerDebugRenderer } from '@motionstudies/three/debug'
 import * as THREE from 'three'
 import type {AirTrack,AirPosition} from '@motionstudies/core/domain/air'
 import type {AircraftPainter,AircraftProjection} from './aircraft-painter'
@@ -75,6 +76,7 @@ export class GpuAircraftPainter implements AircraftPainter {
  private readonly trailBuckets:{object:THREE.Mesh;start:number;end:number}[]=[]
  private tracks?:AirTrack[];private airport?:string;private selected?:string;private matchingIds?:ReadonlySet<string>
  private builds=0;private geometryBytes=0;private geometryPreparedBytes=0;private stateUploadBytes=0
+ private readonly stopDebugging:()=>void
  private size='';private disposed=false
  private readonly lost=(event:Event)=>{event.preventDefault();if(!this.disposed)this.onFailure('WebGL context lost; using Canvas.')}
  constructor(parent:HTMLElement,private readonly onFailure:(message:string)=>void){
@@ -86,6 +88,7 @@ export class GpuAircraftPainter implements AircraftPainter {
    const material=new THREE.ShaderMaterial({uniforms:{...this.uniforms,emphasis:{value:layer-1}},transparent:true,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,vertexShader:lines?lineVertex:pointVertex,fragmentShader:lines?fragment:pointFragment})
    this.materials.push(material)
   }
+  this.stopDebugging=registerDebugRenderer(this.renderer,{label:'Aircraft trails',redraw:()=>{if(!this.disposed)this.renderer.render(this.scene,this.camera)},metadata:()=>({playbackTime:this.uniforms.studyTime.value,projection:this.uniforms.projection.value.toArray(),camera:{position:this.camera.position.toArray(),quaternion:this.camera.quaternion.toArray(),projection:this.camera.projectionMatrix.toArray()},selectedAircraft:this.selected,watching:this.uniforms.watching.value===1,gpu:this.stats()})})
   this.canvas.addEventListener('webglcontextlost',this.lost);parent.append(this.canvas)
  }
  setWatchMode(enabled:boolean){this.uniforms.watching.value=enabled?1:0}
@@ -147,5 +150,5 @@ export class GpuAircraftPainter implements AircraftPainter {
  end(){this.stateUploadBytes=this.state.byteLength;if(this.uniforms.watching.value){this.holdingTexture.needsUpdate=true;this.stateUploadBytes+=this.holding.byteLength}this.texture.needsUpdate=true;this.renderer.render(this.scene,this.camera)}
  clear(){this.renderer.clear();this.renderer.info.reset();this.geometryPreparedBytes=0;this.stateUploadBytes=0}
  stats(){const r=this.renderer.info.render;return {calls:r.calls,triangles:r.triangles,points:r.points,geometryBuilds:this.builds,geometryBytes:this.geometryBytes,geometryPreparedBytes:this.geometryPreparedBytes,stateUploadBytes:this.stateUploadBytes}}
- dispose(){if(this.disposed)return;this.disposed=true;this.canvas.removeEventListener('webglcontextlost',this.lost);for(const object of this.objects)object.geometry.dispose();for(const material of this.materials)material.dispose();this.texture.dispose();this.holdingTexture.dispose();this.comparisonTexture.dispose();this.tracks=undefined;this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.remove()}
+ dispose(){if(this.disposed)return;this.disposed=true;this.stopDebugging();this.canvas.removeEventListener('webglcontextlost',this.lost);for(const object of this.objects)object.geometry.dispose();for(const material of this.materials)material.dispose();this.texture.dispose();this.holdingTexture.dispose();this.comparisonTexture.dispose();this.tracks=undefined;this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.remove()}
 }

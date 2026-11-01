@@ -1,3 +1,5 @@
+import { initializeEditionDebug, updateEditionDebugState, gpuDebugEnabled } from './debug'
+import dataRelease from '../data-release.json'
 import {airportLabelRanks,type AirportLabel} from './airport-labels'
 import React, {useCallback,useEffect,useMemo,useRef,useState} from 'react'
 import {createRoot} from 'react-dom/client'
@@ -217,6 +219,7 @@ function Study({release}:{release:Release}) {
     if(e.playing&&!e.waiting&&!e.scrubbing&&map.current!.renderedFrames!==before){const m=metrics.current;if(m.lastPaint){m.intervals.push(now-m.lastPaint);if(m.intervals.length>300)m.intervals.shift()}m.lastPaint=now}
     if(now-lastUi>=200){const durations=map.current!.durations.slice().sort((a,b)=>a-b);setUi(previous=>{const next={time:e.time,playing:e.playing,waiting:e.waiting,...counts,cache:store.cache.size,ms:durations[Math.floor(durations.length*.95)]??0,responseBytes:store.disk?.stats.responseBytes??0,following:map.current?.followedFlight??''};return (Object.keys(next) as (keyof typeof next)[]).every(key=>next[key]===previous[key])?previous:next});lastUi=now}
    }
+   if(gpuDebugEnabled)updateEditionDebugState({dataRelease:{date:manifest.date,manifestSha256:dataRelease.manifestSha256,recorderCommit:dataRelease.recorderCommit},playing:e.playing,playbackTime:e.time,selection:{airports:e.airports,flight:map.current?.selectedFlight,selectedCount:e.selectedIds?.size},layers:{mode:e.mode,dimOthers:e.dimOthers},viewport:map.current?.view})
    raf=requestAnimationFrame(frame)
   };raf=requestAnimationFrame(frame)
   const visibility=()=>{if(document.hidden){e.playing=false;updateUi()}};document.addEventListener('visibilitychange',visibility)
@@ -335,4 +338,4 @@ function Study({release}:{release:Release}) {
   {watch.active&&status.includes('Retry')&&<div className="watch-error" role="status">Playback interrupted <button onClick={()=>{engine.current.playing=true;void seek(engine.current.targetTime)}}>Retry</button></div>}
  </main>
 }
-createRoot(document.getElementById('root')!).render(<App/> )
+void initializeEditionDebug().then(()=>createRoot(document.getElementById('root')!).render(<App/> ))

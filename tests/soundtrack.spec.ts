@@ -20,6 +20,10 @@ test('sound is opt-in, fades to suspended, and stays controllable in Watch mode'
  // The soundtrack is independent of the paused map clock.
  await expect(page.locator('.play')).toHaveText('Play')
  await page.getByRole('button',{name:'Enter watch mode'}).click()
+ // Keep the controls awake through audio assertions, even on a slow runner.
+ // Focus reveals the controls and :focus-within prevents idle pointer blocking.
+ await sound.focus()
+ await expect(sound).toBeFocused()
  await expect(sound).toBeVisible();await expect(sound).toHaveAttribute('aria-pressed','true')
  await sound.click();await expect(sound).toHaveAttribute('aria-pressed','false')
  await expect.poll(()=>page.evaluate(()=>(window as any).soundContexts[0].state)).toBe('suspended')

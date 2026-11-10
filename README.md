@@ -80,7 +80,7 @@ Routes come from distinct pairs of known observed endpoints. They cover both dir
 
 The public study is served at [motionstudies.app/luft](https://motionstudies.app/luft/), with [GitHub Pages](https://emmettl.github.io/luft/) retained as a mirror. A separate Cloudflare workflow publishes the exact artifact from a successful main Pages workflow; failed checks do not publish. See [series hosting](https://github.com/emmettl/motionstudies/blob/main/docs/HOSTING.md) for the shared publication and rollback contract. LUFT’s validated daily refresh workflow can also supply that artifact.
 
-Node 24+, npm 11.21.1:
+Node 26+, npm 12.2.2:
 
 ```sh
 npm ci
@@ -154,3 +154,5 @@ Uses the published `@motionstudies/*` alpha.48 packages. Normal URLs load no GPU
 Use `?renderer=three&debug=capture` beneath the `/luft/` base path. The renderer selector lists the active GPU aircraft layer; switching to Canvas 2D or losing the context retires that registration. Re-enabling GPU registers it once. Spector captures instanced trails and the state-texture work; exports include the pinned data-release hash, actual time, selected aircraft, geographic projection, viewport and work counters. The raw Three renderer uses capture and observations; it does not mount a Fiber profiler.
 
 Check the production build with `LUFT_TEST_PORT=4811 LUFT_TEST_PREVIEW=1 npm run test:browser -- tests/gpu-debug.spec.ts --workers=1`.
+
+Development targets Node 26 and npm 12.2.2. Shared Motion Studies packages are pinned to 1.0.0; `npm run check:stack` validates the adopted baseline through `@motionstudies/tooling`. Edition-specific data, boundary and publication checks remain local.

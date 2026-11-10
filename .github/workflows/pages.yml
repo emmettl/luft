@@ -20,8 +20,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm install --global npm@11.21.1
+      - run: npm install --global npm@12.2.2
       - run: npm ci
+      - run: npm run check:stack
       - run: npm run data:fetch
       - run: npm run build && npm test
       - run: npx playwright install --with-deps chromium webkit

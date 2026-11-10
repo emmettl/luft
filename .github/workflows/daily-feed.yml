@@ -30,8 +30,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm install --global npm@11.21.1
+      - run: npm install --global npm@12.2.2
       - run: npm ci
+      - run: npm run check:stack
       - name: Set temporary candidate path
         run: node --input-type=module -e 'import fs from "node:fs"; fs.appendFileSync(process.env.GITHUB_ENV,`FEED_CANDIDATE=${process.env.RUNNER_TEMP}/luft-daily/candidate\n`)'
       - name: Select completed UTC day
